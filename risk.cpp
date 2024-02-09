@@ -167,6 +167,19 @@ public:
   {
     return id < other.id;
   }
+
+  int getNumberOfFriendlyNeighbors(int p)
+  {
+    int return_value = 0;
+    for( int i = 0; i< bordering_country.size(); i++ )
+      {
+	if( bordering_country[i]->getPlayer() == p )
+	  {
+	    return_value++;
+	  }
+      }
+    return return_value;
+  }
 private:
   int id;
   string * name;
@@ -201,6 +214,19 @@ void displayPlayers()
     }
   return;
 }
+
+void displayPlayersFriendlyCountries( int p )
+{
+  for( int i = 0; i < countries.size(); i++ )
+    {
+      if( countries[i]->getPlayer() == p && countries[i]->getNumberOfFriendlyNeighbors(p) > 0 )
+	{
+	  cout << "(" << i << ") " << *countries[i] << endl;
+	}
+    }
+  return;
+}
+
 void displayPlayersCountries( int p )
 {
   for( int i = 0; i < countries.size(); i++ )
@@ -770,18 +796,23 @@ int main()
 	
 	for( int i=0; i<players.size(); i++ )
 	  {
+	    /* ==================================== */
 	    int input = 0;
 	    while( input != -1 )
 	      {
-		cout << "*** PLAYER " << i << " TROOP MOVEMENTS ***" << endl;
-		displayPlayersCountries(i);
+		cout << endl << "*** PLAYER " << i << " TROOP MOVEMENTS ***" << endl;
+		displayPlayersFriendlyCountries(i);
 		cout << "*** move from (-1 to end): ***" << endl;
 		cin >> input;
-		if( countries[input]->getNumber() < 2 && input != -1)
+		if( input == -1 )
+		  {
+		    cerr << "*** e x i t ***" << endl;
+		  }
+		else if( countries[input]->getNumber() < 2)
 		  {
 		    cerr << "*** not enough troops to move ***" << endl;
 		  }
-		else if( input!=-1)
+		else 
 		  {
 		    for( int ii=0; ii<countries[input]->bordering_country.size(); ii++ )
 		      {
@@ -798,6 +829,7 @@ int main()
 		      }
 		  }
 	      }
+	    /* ==================================== */
 	  }
 	    
     }
