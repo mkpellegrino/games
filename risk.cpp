@@ -72,13 +72,15 @@ vector<int> defender_dice;
 class Player
 {
 public:
-  Player( string * s = new string("no_name"), int strat = 0 )
+  Player( string * s = new string("no_name"), int o = 0, int t = 0, int strat = 0)
   {
 #ifdef DEBUG
     cerr << "creating player " << *s << endl;
 #endif
+    order = o;
     name = s;
     strategy = strat;
+    unplaced_troops = t;
   }
   
   ~Player()
@@ -91,14 +93,23 @@ public:
   }
   friend ostream& operator <<(ostream& out, const Player& p);
 
+  void setUnplacedTroops(int i){ unplaced_troops = i;}
+  int getUnplacedTroops(){ return unplaced_troops; }
 private:
   string * name;
   int strategy;
+  int unplaced_troops;
+  int order;
 };
 
 ostream& operator <<(ostream& out, const Player& p)
 {
+  /* $$$ */
+
+  out << "\e[1;" << to_string(p.order+33)<< "m";
   out << *p.name;
+  out << "\e[38;5;40m";
+  
   return out;
 }; 
 
@@ -123,7 +134,7 @@ public:
     player = c->player;
   }
   
-  Country(string * s, int id_for_vector, int X, int Y, string * sn, int n = 0, int p = 0)
+  Country(string * s, int id_for_vector, int X, int Y, string * sn, int n = 0, int p = -1)
   {
     //id=country_index++;
     x=X;
@@ -174,9 +185,8 @@ public:
 
   void map_print()
   {
-    cout << "\e[1;" << to_string(player+33)<< "m";
-    
-    cout << "\e[" << x*4+2 << ";" << y*15+7 << "H" << *short_name << "\e[" << x*4+3 << ";" << y*15+10 << "H" << number_of_troops;
+    cout << "\e[1;" << to_string(player+33)<< "m";    
+    cout << "\e[" << x*4+2 << ";" << y*15+7 << "H" << *short_name << "\e[" << x*4+3 << ";" << y*15+9 << "H" << number_of_troops;
     cout << "\e[38;5;40m";
 
   }
@@ -264,7 +274,13 @@ vector<Country*> Country::getHostileNeighbors()
 ostream& operator <<(ostream& out, const Country& c)
 {
   out << "\e[1;" << to_string(c.player+33)<< "m";
-  out << setfill(' ') << setw(23) << *c.name << setw(1) << " " << "P" << c.player << " T" << c.number_of_troops;
+  out << setfill(' ') << left << setw(23) << *c.name
+      << setw(1);
+    if( c.player!=-1)
+      {
+	out << " P" << c.player;
+	out << " T" << c.number_of_troops;
+      }
   out << "\e[38;5;40m";
   return out;
 }; 
@@ -403,10 +419,21 @@ void displayCountriesNeighbors( Country * c )
 void displayPlayersCountries( int p )
 {
   vector<Country*> v = getPlayersCountries(p);
+  int max_columns = 0;
+  if( v.size() > 10 )
+    {
+      max_columns = 2;
+    }
   
+  int which_col=0;
   for( int i = 0; i < v.size(); i++ )
     {
-      cout << "(" << i << ") " << *v[i] << endl;
+      cout << "(" << i << ") " << *v[i] << "\t\t";
+      if( ++which_col > max_columns )
+	{
+	  cout << endl;
+	  which_col = 0;
+	}
     }
   return;
 }
@@ -421,28 +448,28 @@ void displayMap()
 {
   cout << "\e[0;0H\e[J";
   cout << "                                                                                               ________       ________       ________       ________" << endl;      
-  cout << "<-                                                                                            [  URAL  ]-----[ SIBERA ]-----[ YAKTSK ]-----[ KMCHTK ]--->" << endl;
-  cout << "  \\                                                                                           |___  ___|     [___  ___] \\   [___  ___] ____|___  ___|    " << endl;
-  cout << "   \\                                                                                     ____/    ||    \\____    ||    \\ \\__    ||    /   /    ||" << endl;
-  cout << "    \\________       ________       ________       ________       ________       ________/      ___||___      \\___||___  \\   \\___||___/   /  ___||___      " << endl;
-  cout << "    [ ALASKA ]-----[ NW TER ]-----[ GRNLND ]-----[ ICELND ]-----[ SCNDVA ]-----[ UKRANE ]-----[ AFGHAN ]-----[ CHINA  ] |   [ IRKTSK ]  /  [ JAPAN  ] " << endl;
-  cout << "    |___  ___|     [___  ___]     [___  ___]     |___  ___|     [___  ___]     [___  ___]     |___  ___|     [___  ___] |   [___  ___] /   |___  ___|    " << endl;
-  cout << "        ||    ____/    ||    ____/    ||             ||    ____/    ||    ____/    ||   \\_____    ||   \\_____    ||   \\_ \\__    ||    / ___/" << endl;
-  cout << "     ___||___/      ___||___/      ___||___       ___||___/      ___||___/      ___||___      \\___||___      \\___||___  \\___\\___||___/_/   " << endl;
-  cout << "    [ ALBRTA ]-----[ ONTARO ]-----[ QUEBEC ]     [ BRITAN ]-----[ N. EUR ]-----[ S. EUR ]-----[ M EAST ]-----[ INDIA  ]     [ MONGOL ] " << endl;
-  cout << "    |___  ___|     [___  ___]     [___  ___]     |___  ___|     [___  ___]     [___  ___]     |___  ___|     [___  ___]     [___  ___]     " << endl;
-  cout << "        ||    ____/    ||    ____/                         \\____    ||    _____/         \\____    ||    \\        ||" << endl;
-  cout << "     ___||___/      ___||___/                                   \\___||___/      ________      \\___||___  \\    ___||___       ________       ________  " << endl;    
-  cout << "    [ WESTUS ]-----[ EASTUS ]                                   [ W. EUR |-----[ N AFRC ]-----[ EGYPT  ]  )  [  SIAM  ]-----[ INDONS ]-----[ NGUNEA ] " << endl;
-  cout << "    |___  ___|     [___  ___]                                   [___  ___]     [___  ___]     |___  ___| /   [___  ___]     [___  ___]     |___  ___|    " << endl;
-  cout << "              \\____    ||                                                 _____/   ||   \\____     ||    /                       ||    _____/   ||" << endl;
-  cout << "                   \\___||___       ________       _______       _________/      ___||___     \\____||___/                     ___||___/      ___||___      " << endl;
-  cout << "                   [ CENTAM ]-----[ VENZLA ]-----[ BRAZIL ]____/               [ CONGO  ]-----[ E AFRC ]                    [ WAUSTR ]-----[ EAUSTR ] " << endl;
-  cout << "                   [___  ___]     [___  ___]     |____  __]    \\               [___  ___]     |___  ___|                    [___  ___]     |___  ___|    " << endl;
-  cout << "                                            \\____    ||         \\                        \\____    ||    \\____" << endl;
-  cout << "                                                 \\___||___      _\\_______                     \\___||___      \\________ " << endl; 
-  cout << "                                                 [  PERU  ]-----[ ARGENT ]                    [ S AFRC ]-----[ MADSGR ] " << endl;
-  cout << "                                                 |___  ___|     [___  ___]                    |___  ___|     [___  ___] " << endl;
+  cout << "<-                                                                                            |        |-----|        |-----|        |-----|        |--->" << endl;
+  cout << "  \\                                                                                           |________|     |________| \\   |________| ____|________|    " << endl;
+  cout << "   \\                                                                                     ____/    |     \\____    |     \\ \\__    |     /   /    | " << endl;
+  cout << "    \\________       ________       ________       ________       ________       ________/      ___|____      \\___|____  \\   \\___|____/   /  ___|____      " << endl;
+  cout << "    |        |-----|        |-----|        |-----|        |-----|        |-----|        |-----|        |-----|        | |   |        |  /  |        | " << endl;
+  cout << "    |________|     |________|     |________|     |________|     |________|     |________|     |________|     |________| |   |________| /   |________|    " << endl;
+  cout << "        |     ____/    |     ____/    |              |     ____/    |     ____/    |    \\_____    |    \\_____    |    \\_ \\__    |     / ___/" << endl;
+  cout << "     ___|____/      ___|____/      ___|____       ___|____/      ___|____/      ___|____      \\___|____      \\___|____  \\___\\___|____/_/   " << endl;
+  cout << "    |        |-----|        |-----|        |     |        |-----|        |-----|        |-----|        |-----|        |     |        | " << endl;
+  cout << "    |________|     |________|     |________|     |________|     |________|     |________|     |________|     |________|     |________|     " << endl;
+  cout << "        |     ____/    |     ____/                         \\____    |     _____/         \\____    |     \\        | " << endl;
+  cout << "     ___|____/      ___|____/                                   \\___|____/      ________      \\___|____  \\    ___|____       ________       ________  " << endl;    
+  cout << "    |        |-----|        |                                   |        |-----|        |-----|        |  )  |        |-----|        |-----|        | " << endl;
+  cout << "    |________|     |________|                                   |________|     |________|     |________| /   |________|     |________|     |________|    " << endl;
+  cout << "              \\____    |                                                  _____/   |    \\____     |     /                       |     _____/   | " << endl;
+  cout << "                   \\___|____       ________       _______       _________/      ___|____     \\____|____/                     ___|____/      ___|____      " << endl;
+  cout << "                   |        |-----|        |-----|        |____/               |        |-----|        |                    |        |-----|        | " << endl;
+  cout << "                   |________|     |________|     |________|    \\               |________|     |________|                    |________|     |________|    " << endl;
+  cout << "                                            \\____    |          \\                        \\____    |     \\____" << endl;
+  cout << "                                                 \\___|____      _\\_______                     \\___|____      \\________ " << endl; 
+  cout << "                                                 |        |-----|        |                    |        |-----|        | " << endl;
+  cout << "                                                 |________|     |________|                    |________|     |________| " << endl;
   for( int i=0; i<countries.size(); i++ )
     {
       countries[i]->map_print();
@@ -479,17 +506,6 @@ void deleteAll()
   return;
 }
 
-void m( int n )
-{
-  cout << "[" << *countries[n] << "]";
-}
-
-void l()
-{
-  cout << "---";
-}
-
-
 int die()
 {
   return (rand() % 6) + 1;
@@ -497,95 +513,139 @@ int die()
 
 int main()
 {
+  cout << " ███████████   █████  █████████  █████   ████" << endl;
+  cout << "░░███░░░░░███ ░░███  ███░░░░░███░░███   ███░ " << endl;
+  cout << " ░███    ░███  ░███ ░███    ░░░  ░███  ███   " << endl;
+  cout << " ░██████████   ░███ ░░█████████  ░███████    " << endl;
+  cout << " ░███░░░░░███  ░███  ░░░░░░░░███ ░███░░███   " << endl;
+  cout << " ░███    ░███  ░███  ███    ░███ ░███ ░░███  " << endl;
+  cout << " █████   █████ █████░░█████████  █████ ░░████" << endl;
+  cout << "░░░░░   ░░░░░ ░░░░░  ░░░░░░░░░  ░░░░░   ░░░░ " << endl;
+  cout << "coded by michael k pellegrino - february 2024" << endl << endl;                                           
+                                             
+                                             
+  
+  bool gotValidInput=false;
 
-  //displayMap();
-  //return -1;
   srand(time(NULL));   // Initialization of Random Number Generator, should only be called once.
+  int number_of_players=0;
+  while( gotValidInput == false )
+    {
+      cout << "*** enter number of players: " << endl;
+      cin >> number_of_players;
+      if( number_of_players <2 || number_of_players > 6 )
+	{
+	  cerr << "enter a number from 2 to 6 please." << endl;
+	}
+      else
+	{
+	  gotValidInput = true;
+	}
+    }
 
-  players.push_back( new Player( new string( "Able" )));
-  players.push_back( new Player( new string( "Baker" )));
-  players.push_back( new Player( new string( "Charlie" )));
+  for( int i=0; i<number_of_players; i++ )
+    {
+      players.push_back( new Player( new string( "Player " + to_string(i)), i)); 
+    }
 
 
+
+  gotValidInput = false;
+  bool randomize_territories = false;
+  while( gotValidInput == false )
+    {
+      cout << "*** randomize territories (1 yes  -  2 no): " << endl;
+      cin >> number_of_players;
+      if( number_of_players <2 || number_of_players > 6 )
+	{
+	  cerr << "enter a number from 2 to 6 please." << endl;
+	}
+      else
+	{
+	  gotValidInput = true;
+	}
+    }
+  
+  
   // CREATE THE NODES
-  countries.push_back( new Country( new string("Alaska"), ALASKA, 1,0, new string("ALASKA"), 1, 0));
-  countries.push_back( new Country( new string("Northwest Territory"), NORTHWEST_TERRITORY, 1, 1, new string("NW TER"), 1, 0));
-  countries.push_back( new Country( new string("Alberta"), ALBERTA, 2, 0, new string("ALBRTA"), 1, 0));  
-  countries.push_back( new Country( new string("Greenland"), GREENLAND, 1, 2, new string("GRNLND"), 1, 0));
-  countries.push_back( new Country( new string("Ontario"), ONTARIO, 2, 1, new string("ONTARO"), 1, 0));
-  countries.push_back( new Country( new string("Quebec"), QUEBEC, 2, 2, new string("QUEBEC"), 1, 1));
-  countries.push_back( new Country( new string("Western U.S."), WESTERN_US, 3, 0, new string("WESTUS"), 1, 0));
-  countries.push_back( new Country( new string("Eastern U.S."), EASTERN_US, 3, 1, new string("EASTUS"), 1, 0));
-  countries.push_back( new Country( new string("Central America"), CENTRAL_AMERICA, 4, 1, new string("CENTAM"), 1, 0));
-  countries.push_back( new Country( new string("Iceland"), ICELAND, 1, 3, new string("ICELND"), 1, 0));
+  countries.push_back( new Country( new string("Alaska"), ALASKA, 1,0, new string("ALASKA")));
+  countries.push_back( new Country( new string("Northwest Territory"), NORTHWEST_TERRITORY, 1, 1, new string("NW TER")));
+  countries.push_back( new Country( new string("Alberta"), ALBERTA, 2, 0, new string("ALBRTA")));  
+  countries.push_back( new Country( new string("Greenland"), GREENLAND, 1, 2, new string("GRNLND")));
+  countries.push_back( new Country( new string("Ontario"), ONTARIO, 2, 1, new string("ONTARO")));
+  countries.push_back( new Country( new string("Quebec"), QUEBEC, 2, 2, new string("QUEBEC")));
+  countries.push_back( new Country( new string("Western U.S."), WESTERN_US, 3, 0, new string("WESTUS")));
+  countries.push_back( new Country( new string("Eastern U.S."), EASTERN_US, 3, 1, new string("EASTUS")));
+  countries.push_back( new Country( new string("Central America"), CENTRAL_AMERICA, 4, 1, new string("CENTAM")));
+  countries.push_back( new Country( new string("Iceland"), ICELAND, 1, 3, new string("ICELND")));
 
-  countries.push_back( new Country( new string("Venezuela"), VENEZUELA, 4, 2, new string("VENZLA"), 1, 0 ));
-  countries.push_back( new Country( new string("Peru"), PERU, 5, 3, new string(" PERU"), 1, 0 ));
-  countries.push_back( new Country( new string("Argntna"), ARGENTINA, 5, 4, new string("ARGENT"), 1, 0 ));
-  countries.push_back( new Country( new string("Brazil"), BRAZIL, 4, 3, new string("BRAZIL"), 1, 0 ));
+  countries.push_back( new Country( new string("Venezuela"), VENEZUELA, 4, 2, new string("VENZLA")));
+  countries.push_back( new Country( new string("Peru"), PERU, 5, 3, new string(" PERU")));
+  countries.push_back( new Country( new string("Argntna"), ARGENTINA, 5, 4, new string("ARGENT")));
+  countries.push_back( new Country( new string("Brazil"), BRAZIL, 4, 3, new string("BRAZIL")));
 
 
-  countries.push_back( new Country( new string("Great Britain"), GREAT_BRITAIN, 2, 3, new string("BRITAN"), 1, 0));
-  countries.push_back( new Country( new string("Scandanavia"), SCANDANAVIA, 1, 4, new string("SCNDVA"), 1, 0 ));
-  countries.push_back( new Country( new string("N. Europe"), NORTHERN_EUROPE, 2, 4, new string("N. EUR"), 1, 0 ));
-  countries.push_back( new Country( new string("W. Europe"), WESTERN_EUROPE, 3, 4, new string( "W. EUR"), 1, 0 ));
-  countries.push_back( new Country( new string("S. Europe"), SOUTHERN_EUROPE, 2, 5, new string( "S. EUR"),1, 0 ));
-  countries.push_back( new Country( new string("Ukraine"), UKRAINE, 1, 5, new string("UKRANE"), 1, 0 ));
+  countries.push_back( new Country( new string("Great Britain"), GREAT_BRITAIN, 2, 3, new string("BRITAN")));
+  countries.push_back( new Country( new string("Scandanavia"), SCANDANAVIA, 1, 4, new string("SCNDVA")));
+  countries.push_back( new Country( new string("N. Europe"), NORTHERN_EUROPE, 2, 4, new string("N. EUR")));
+  countries.push_back( new Country( new string("W. Europe"), WESTERN_EUROPE, 3, 4, new string( "W. EUR")));
+  countries.push_back( new Country( new string("S. Europe"), SOUTHERN_EUROPE, 2, 5, new string( "S. EUR")));
+  countries.push_back( new Country( new string("Ukraine"), UKRAINE, 1, 5, new string("UKRANE")));
   
-  countries.push_back( new Country( new string("N. Africa"), NORTH_AFRICA, 3, 5, new string("N AFRC"), 1, 0 ));
-  countries.push_back( new Country( new string("E. Africa"), EAST_AFRICA, 4, 6, new string( "E AFRC"), 1, 0 ));
-  countries.push_back( new Country( new string("Egypt"), EGYPT, 3, 6, new string("EGYPT"),1, 0 ));
-  countries.push_back( new Country( new string("Congo"), CONGO, 4, 5, new string("CONGO"), 1, 0 ));
-  countries.push_back( new Country( new string("S. Africa"), SOUTH_AFRICA, 5, 6, new string("S AFRC"), 1, 0 ));
-  countries.push_back( new Country( new string("Madagascar"), MADAGASCAR, 5, 7, new string("MADSGR"), 1, 0 ));
+  countries.push_back( new Country( new string("N. Africa"), NORTH_AFRICA, 3, 5, new string("N AFRC")));
+  countries.push_back( new Country( new string("E. Africa"), EAST_AFRICA, 4, 6, new string( "E AFRC")));
+  countries.push_back( new Country( new string("Egypt"), EGYPT, 3, 6, new string("EGYPT")));
+  countries.push_back( new Country( new string("Congo"), CONGO, 4, 5, new string("CONGO")));
+  countries.push_back( new Country( new string("S. Africa"), SOUTH_AFRICA, 5, 6, new string("S AFRC")));
+  countries.push_back( new Country( new string("Madagascar"), MADAGASCAR, 5, 7, new string("MADSGR")));
   
-  countries.push_back( new Country( new string("New Guinea"), NEW_GUINEA, 3, 9, new string("NGUNEA"), 1, 0 ));
-  countries.push_back( new Country( new string("Indonsia"), INDONESIA, 3, 8, new string("INDONS"), 1, 0 ));
-  countries.push_back( new Country( new string("W Australia"), WESTERN_AUSTRALIA, 4, 8, new string("WAUSTR"), 1, 0 ));
-  countries.push_back( new Country( new string("E Australia"), EASTERN_AUSTRALIA, 4, 9, new string("EAUSTR"), 1, 0 ));
+  countries.push_back( new Country( new string("New Guinea"), NEW_GUINEA, 3, 9, new string("NGUNEA")));
+  countries.push_back( new Country( new string("Indonsia"), INDONESIA, 3, 8, new string("INDONS")));
+  countries.push_back( new Country( new string("W Australia"), WESTERN_AUSTRALIA, 4, 8, new string("WAUSTR")));
+  countries.push_back( new Country( new string("E Australia"), EASTERN_AUSTRALIA, 4, 9, new string("EAUSTR")));
 
-      /*
-        0               1             2              3              4              5             6               7               8            9
-                                                                                               ________       ________       ________       ________      
-<-                                                                                            [  URAL  ]-----[ SIBERA ]-----[ YAKTSK ]-----[ KMCHTK ]--->      0
-  \                                                                                           |___00___|     [___00___] \   [___00___] ____|___00___|    
-   \                                                                                     ____/    ||    \____    ||    \ \__    ||    /   /    ||
+  /*
+    0               1             2              3              4              5             6               7               8            9
+    ________       ________       ________       ________      
+    <-                                                                                            [  URAL  ]-----[ SIBERA ]-----[ YAKTSK ]-----[ KMCHTK ]--->      0
+    \                                                                                           |___00___|     [___00___] \   [___00___] ____|___00___|    
+    \                                                                                     ____/    ||    \____    ||    \ \__    ||    /   /    ||
     \________       ________       ________       ________       ________       ________/      ___||___      \___||___  \   \___||___/   /  ___||___      
     [ ALASKA ] --- [ NW TER ] --- [ GRNLND ]-----[ ICELND ]-----[ SCNDVA ]-----[ UKRANE ]-----[ AFGHAN ]-----[ CHINA  ] |   [ IRKTSK ]  /  [ JAPAN  ]          1
     |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     |___00___|     [___00___] |   [___00___] /   |___00___|    
-        ||    ____/    ||    ____/    ||             ||    ____/    ||    ____/    ||   \_____    ||   \_____    ||   \_ \__    ||    / ___/
-     ___||___/      ___||___/      ___||___       ___||___/      ___||___/      ___||___      \___||___      \___||___  \___\___||___/_/   
+    ||    ____/    ||    ____/    ||             ||    ____/    ||    ____/    ||   \_____    ||   \_____    ||   \_ \__    ||    / ___/
+    ___||___/      ___||___/      ___||___       ___||___/      ___||___/      ___||___      \___||___      \___||___  \___\___||___/_/   
     [ ALBRTA ]-----[ ONTARO ]-----[ QUEBEC ]     [ BRITAN ]-----[ N. EUR ]-----[ S. EUR ]-----[ M EAST ]-----[ INDIA  ]     [ MONGOL ]                         2
     |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     
-        ||    ____/    ||    ____/                         \____    ||    _____/         \____    ||    \        ||
-     ___||___/      ___||___/                                   \___||___/      ________      \___||___  \    ___||___       ________       ________      
+    ||    ____/    ||    ____/                         \____    ||    _____/         \____    ||    \        ||
+    ___||___/      ___||___/                                   \___||___/      ________      \___||___  \    ___||___       ________       ________      
     [ WESTUS ]-----[ EASTUS ]                                   [ W. EUR |-----[ N AFRC ]-----[ EGYPT  ]  )  [  SIAM  ]-----[ INDONS ]-----[ NGUNEA ]          3
     |___00___|     [___00___]                                   [___00___]     [___00___]     |___00___| /   [___00___]     [___00___]     |___00___|    
-              \____    ||                                                 _____/   ||   \____     ||    /                       ||    _____/   ||
-                   \___||___       ________       _______________________/      ___||___     \____||___/                     ___||___/      ___||___      
-                   [ CENTAM ]-----[ VENZLA ]-----[        BRAZIL         ]     [ CONGO  ]-----[ E AFRC ]                    [ WAUSTR ]-----[ EAUSTR ]          4
-                   [___00___]     [___00___]     |__________00___________]     [___00___]     |___00___|                    [___00___]     |___00___|    
-                                            \____    ||             ||                   \____    ||    \____
-                                                 \___||___       ___||___                     \___||___      \________  
-                                                 [  PERU  ]-----[ ARGENT ]                    [ S AFRC ]-----[ MADSGR ]                                        5
-                                                 |___00___|     [___00___]                    |___00___|     [___00___] 
+    \____    ||                                                 _____/   ||   \____     ||    /                       ||    _____/   ||
+    \___||___       ________       _______________________/      ___||___     \____||___/                     ___||___/      ___||___      
+    [ CENTAM ]-----[ VENZLA ]-----[        BRAZIL         ]     [ CONGO  ]-----[ E AFRC ]                    [ WAUSTR ]-----[ EAUSTR ]          4
+    [___00___]     [___00___]     |__________00___________]     [___00___]     |___00___|                    [___00___]     |___00___|    
+    \____    ||             ||                   \____    ||    \____
+    \___||___       ___||___                     \___||___      \________  
+    [  PERU  ]-----[ ARGENT ]                    [ S AFRC ]-----[ MADSGR ]                                        5
+    |___00___|     [___00___]                    |___00___|     [___00___] 
 
-*/
+  */
 
 
 
-  countries.push_back( new Country( new string("Kamchatka"), KAMCHATKA, 0, 9, new string("KMCHTK"), 1, 0));
-  countries.push_back( new Country( new string("Ural"), URAL, 0, 6, new string(" URAL"), 1, 0 ));
-  countries.push_back( new Country( new string("Siberia"), SIBERIA, 0, 7, new string("SIBERA"), 1, 0 ));
-  countries.push_back( new Country( new string("Yakutsk"), YAKUTSK, 0, 8, new string("YAKTSK"), 1, 0 ));
-  countries.push_back( new Country( new string("Irkutsk"), IRKUTSK, 1, 8, new string("IRKTSK"), 1, 0 ));
-  countries.push_back( new Country( new string("Japan"), JAPAN, 1, 9, new string("JAPAN"), 1, 0 ));
-  countries.push_back( new Country( new string("Mongolia"), MONGOLIA, 2, 8, new string("MONGOL"), 1, 0 ));
-  countries.push_back( new Country( new string("Afghan"), AFGHANISTAN, 1, 6, new string("AFGHAN"), 1, 0 ));
-  countries.push_back( new Country( new string("Middle East"), THE_MIDDLE_EAST, 2, 6, new string( "M EAST"), 1, 0 ));
-  countries.push_back( new Country( new string("India"), INDIA, 2, 7, new string("INDIA"), 1, 0 ));
-  countries.push_back( new Country( new string("China"), CHINA, 1, 7, new string("CHINA"), 1, 0 ));
-  countries.push_back( new Country( new string("Siam"), SIAM, 3, 7, new string(" SIAM"), 1, 0 ));
+  countries.push_back( new Country( new string("Kamchatka"), KAMCHATKA, 0, 9, new string("KMCHTK")));
+  countries.push_back( new Country( new string("Ural"), URAL, 0, 6, new string(" URAL")));
+  countries.push_back( new Country( new string("Siberia"), SIBERIA, 0, 7, new string("SIBERA")));
+  countries.push_back( new Country( new string("Yakutsk"), YAKUTSK, 0, 8, new string("YAKTSK")));
+  countries.push_back( new Country( new string("Irkutsk"), IRKUTSK, 1, 8, new string("IRKTSK")));
+  countries.push_back( new Country( new string("Japan"), JAPAN, 1, 9, new string("JAPAN")));
+  countries.push_back( new Country( new string("Mongolia"), MONGOLIA, 2, 8, new string("MONGOL")));
+  countries.push_back( new Country( new string("Afghan"), AFGHANISTAN, 1, 6, new string("AFGHAN")));
+  countries.push_back( new Country( new string("Middle East"), THE_MIDDLE_EAST, 2, 6, new string( "M EAST")));
+  countries.push_back( new Country( new string("India"), INDIA, 2, 7, new string("INDIA")));
+  countries.push_back( new Country( new string("China"), CHINA, 1, 7, new string("CHINA")));
+  countries.push_back( new Country( new string("Siam"), SIAM, 3, 7, new string(" SIAM")));
 
 
 
@@ -593,22 +653,17 @@ int main()
   // RANDOMIZE THE COUNTRIES AND GIVE 14 TO EACH OF THE 3 PLAYERS
   sort(countries.begin(), countries.end(), [](auto const& lhs, auto const& rhs) {return lhs->getRandomNumber() < rhs->getRandomNumber();});
 
+  /* This is for random assignment of territories */
   // 35 armies each
-  int armies=35;
-  for( int i = 0; i < 14; i++ )
+  int number_of_countries_each = 42/number_of_players;
+  //int which_country=0;
+  for( int i = 0; i < number_of_players; i++ )
     {
-      countries[i]->addTroops(1+rand()%5);
-      countries[i]->setPlayer(0);
-    }
-  for( int i = 14; i < 28; i++ )
-    {
-      countries[i]->addTroops(1+rand()%5);
-      countries[i]->setPlayer(1);
-    }
-  for( int i = 28; i < 42; i++ )
-    {
-      countries[i]->addTroops(1+rand()%5);
-      countries[i]->setPlayer(2);
+      for( int j=0; j<number_of_countries_each; j++ )
+	{
+	  //countries[j+i*number_of_countries_each]->setPlayer(i);
+	  //countries[j+i*number_of_countries_each]->setNumber(1);
+	}
     }
   
   // SORT THE COUNTRIES SO THAT WE CAN USE THE #DEFINE as an INDEX  
@@ -675,8 +730,6 @@ int main()
 
   countries[ARGENTINA]->addBorderingCountry( countries[PERU] );
   countries[ARGENTINA]->addBorderingCountry( countries[BRAZIL] );
-
-  
   
   countries[ICELAND]->addBorderingCountry( countries[GREAT_BRITAIN] );
   countries[ICELAND]->addBorderingCountry( countries[GREENLAND] );
@@ -690,6 +743,14 @@ int main()
 
   countries[JAPAN]->addBorderingCountry( countries[MONGOLIA] );
   countries[JAPAN]->addBorderingCountry( countries[KAMCHATKA] );
+
+
+  countries[AFGHANISTAN]->addBorderingCountry( countries[UKRAINE] );
+  countries[AFGHANISTAN]->addBorderingCountry( countries[URAL] );
+  countries[AFGHANISTAN]->addBorderingCountry( countries[CHINA] );
+  countries[AFGHANISTAN]->addBorderingCountry( countries[INDIA] );
+  countries[AFGHANISTAN]->addBorderingCountry( countries[THE_MIDDLE_EAST] );
+ 
   
   countries[CHINA]->addBorderingCountry( countries[SIAM] );
   countries[CHINA]->addBorderingCountry( countries[INDIA] );
@@ -822,30 +883,68 @@ int main()
   countries[WESTERN_EUROPE]->addBorderingCountry( countries[SOUTHERN_EUROPE] );
   countries[WESTERN_EUROPE]->addBorderingCountry( countries[NORTH_AFRICA] );
 
-  //countries[]->addBorderingCountry( countries[] );
-  //countries[]->addBorderingCountry( countries[] );
-  //countries[]->addBorderingCountry( countries[] );
-  
-  //drawMap();
 
-  //return -1;
-  bool gotValidInput=false;
+  for( int i = 0; i < number_of_players; i++ )
+    {
+      players[i]->setUnplacedTroops( 50 - number_of_players*5 );
+    }
+
+  for( int i=0; i< 50-number_of_players*5; i++ )
+    {
+      for( int j=0; j<number_of_players; j++ )
+	{
+	  clearHalf();	
+	  displayMap();
+
+	  cout << "*** INITIAL DISTRIBUTION OF TROOPS AND CLAIMING OF TERRITORIES ***" << endl;
+	  cout << "*** PLAYER: " << *players[j] << " has " << players[j]->getUnplacedTroops() << " troops that need to be placed ***" << endl;
+
+
+	  vector<Country*> v = getPlayersCountries(-1);
+	  if( v.size() == 0 )
+	    {
+	      v = getPlayersCountries(j);
+	      displayPlayersCountries(j);
+	    }
+	  else
+	    {
+	      displayPlayersCountries(-1);
+	    }
+	  cout << endl << ">> where would you like to place a troop?" << endl;
+	  gotValidInput = false;
+	  while( !gotValidInput )
+	    {
+	      int input3;
+	      cin >> input3;
+
+	      if( input3 >= 0 && input3 < (int)v.size() )
+		{
+		  v[input3]->addTroops(1);
+		  v[input3]->setPlayer(j);
+		  players[j]->setUnplacedTroops(players[j]->getUnplacedTroops()-1);
+		  gotValidInput = true;
+		}
+	      else
+		{
+		  cout << "*** invalid input ***" << endl;
+		}
+	    }
+	}
+    }
+  
+  
   while(1)
     {
+
+
       // iterate through everyone's turn
-      //displayAllCountries();
+
+      /*  **** GAME PLAY *** */
       for( int whosTurn=0; whosTurn < players.size(); whosTurn++ )
 	{
 	  bool still_their_turn = true;
 	  while( still_their_turn )
 	    {
-	      displayMap();
-	      //for( int i=0; i<countries.size(); i++ )
-	      //{
-	      //countries[i]->map_print();
-	      //}
-	      cout << endl << "*** Player: " << *players[whosTurn] << "'s turn ***" << endl;
-
 	      // create a vector of possible starting points
 	      vector<Country*> possible_countries_to_start_from = getPlayersCountriesThatHaveHostileNeighborsWithMoreThanOneTroop(whosTurn);
 	      vector<Country*> possible_countries_to_attack;
@@ -856,23 +955,29 @@ int main()
 	      while(!gotValidInput)
 		{
 		  clearHalf();
+		  displayMap();
 		  // Display the vector of possible starting countries
+		  cout << endl << "*** Player: " << *players[whosTurn] << "'s turn ***" << endl;
+		  
 		  for( int i = 0; i < possible_countries_to_start_from.size(); i++ )
 		    {
 		      cout << "(" << i << ") " << *possible_countries_to_start_from[i] << endl;
 		    }
-		  cout << endl << "*** Choose where your attack will originate from ***" << endl;
-		  cout << "(-1 to end turn) (-2 to view world)" << endl;
-		  cin >> x;
-		  clearHalf();
-		  if( x >= -1 && x < (int)possible_countries_to_start_from.size())
+		  if( possible_countries_to_start_from.size() == 0 )
 		    {
-		      gotValidInput=1;
+		      gotValidInput=true;
+		      x = -1; // end the turn because there are no more countries that can be attacked
 		    }
-		  if( x == -2)
+		  else
 		    {
+		      cout << endl << "*** Choose where your attack will originate from ***" << endl;
+		      cout << "(-1 to end turn)" << endl;
+		      cin >> x;
 		      clearHalf();
-		      displayAllCountries();
+		      if( x >= -1 && x < (int)possible_countries_to_start_from.size())
+			{
+			  gotValidInput=1;
+			}
 		    }
 		}
 	      Country * c;
@@ -891,65 +996,60 @@ int main()
 		  c =  possible_countries_to_start_from[x];
 		  // build list of possible countries to attack
 		  //{
-		    vector<Country*> list_of_hostile_neighbors = c->getHostileNeighbors();
-		    gotValidInput=false;
-		    int y;
-		    while( !gotValidInput )
-		      {
-			clearHalf();
-			cout << "*** you chose " << *c << " ***" << endl;
-			displayCountriesHostileNeighbors(c);		      
-			cout << endl << "*** Choose where your attack will take place ***" << endl;
-			cout << "(-1 to exit) (-2 to view world)" << endl;
-			cin >> y;
-			if( y>=-1 && y< (int)list_of_hostile_neighbors.size() )
-			  {
-			    gotValidInput=true;
-			  }
-			if( y == -2)
-			  {
-			    displayAllCountries();
-			  }
+		  vector<Country*> list_of_hostile_neighbors = c->getHostileNeighbors();
+		  gotValidInput=false;
+		  int y;
+		  while( !gotValidInput )
+		    {
+		      clearHalf();
+		      cout << "*** you chose " << *c << " ***" << endl;
+		      displayCountriesHostileNeighbors(c);		      
+		      cout << endl << "*** Choose where your attack will take place ***" << endl;
+		      cout << "(-1 to exit)" << endl;
+		      cin >> y;
+		      if( y>=-1 && y< (int)list_of_hostile_neighbors.size() )
+			{
+			  gotValidInput=true;
+			}
+		    }
 
-		      }
-
-		    switch(y)
-		      {
-		      case -1:
-			break;
-		      default:
-			d = list_of_hostile_neighbors[y];
-			break;
-		      }
+		  switch(y)
+		    {
+		    case -1:
+		      break;
+		    default:
+		      d = list_of_hostile_neighbors[y];
+		      break;
+		    }
 		      
-		    int attacker_troops_total = 0;
-		    int defender_troops_total = d->getNumber();
+		  int attacker_troops_total = 0;
+		  int defender_troops_total = d->getNumber();
 
-		    gotValidInput=false;
-		    while( !gotValidInput )
-		      {
-			clearHalf();
-			cout << endl << "*** you chose to attack " << *d << " from " << *c << " ***" << endl;
+		  gotValidInput=false;
+		  while( !gotValidInput )
+		    {
+		      clearHalf();
+		      cout << endl << "*** you chose to attack " << *d << " from " << *c << " ***" << endl;
 
-			// the attack will now take place
-			cout << "how many troops do you want to use?" <<endl;
-			cin >> attacker_troops_total;
-			if( attacker_troops_total>0 && attacker_troops_total<(int)(c->getNumber()) )
-			  {
-			    gotValidInput=true;
-			  }
-			else if( attacker_troops_total == -2)
-			  {
-			    displayAllCountries();
-			  }
-			else
-			  {
-			    cout << "invalid input " << c->getNumber() << endl;
-			  }
-		      }
+		      // the attack will now take place
+		      cout << "how many troops do you want to use?" <<endl;
+		      cin >> attacker_troops_total;
+		      if( attacker_troops_total>0 && attacker_troops_total<(int)(c->getNumber()) )
+			{
+			  gotValidInput=true;
+			}
+		      else if( attacker_troops_total == -2)
+			{
+			  displayAllCountries();
+			}
+		      else
+			{
+			  cout << "invalid input " << c->getNumber() << endl;
+			}
+		    }
 
-		  cerr << "ATTACKING WITH " << attacker_troops_total << " troops" << endl;
-		  cerr << "DEFENDING WITH " << defender_troops_total << " troops" << endl;
+		  //cerr << "ATTACKING WITH " << attacker_troops_total << " troops" << endl;
+		  //cerr << "DEFENDING WITH " << defender_troops_total << " troops" << endl;
 
 		  // remove the number of attacking troops from the originating country
 		  c->setNumber( c->getNumber() - attacker_troops_total );
@@ -1052,151 +1152,153 @@ int main()
 			}
 		      possible_countries_to_attack.erase(possible_countries_to_attack.begin(),possible_countries_to_attack.begin());
 		      //}
-		  }
+		    }
 		}
 	    }
 	}
 
     
-    // TROOP MOVEMENTS
+      // TROOP MOVEMENTS
 	
-    cout << "* * * * * T R O O P   M O V E M E N T S * * *" << endl;
-    for( int i=0; i<players.size(); i++ )
-      {
-	/* ==================================== */
-	int input = 0;
-	while( input != -1 )
-	  {
-	    cout << endl << endl << "*** PLAYER: " << *players[i] << " TROOP MOVEMENTS ***" << endl;
-	    vector<Country*> player_countries = getPlayersCountriesThatHaveFriendlyNeighborsWithMoreThanOneTroop(i);
-	    gotValidInput=false;
-	    while( !gotValidInput )
+      for( int i=0; i<players.size(); i++ )
+	{
+	  /* ==================================== */
+	  int input = 0;
+	  while( input != -1 )
+	    {
+	      vector<Country*> player_countries = getPlayersCountriesThatHaveFriendlyNeighborsWithMoreThanOneTroop(i);
+	      gotValidInput=false;
+	      if( player_countries.size() == 0 )
 		{
+		  gotValidInput = true;
+		  input = -1;
+		}
+	      while( !gotValidInput )
+		{
+		  
 		  clearHalf();
 		  for( int i=0; i<player_countries.size(); i++ )
 		    {
 		      cout << "(" << i << ") " << *player_countries[i] << endl;
 		    }
-		  cout << "*** move from (-1 to end) (-2 to view world): ***" << endl;
+		  cout << "* * * * * T R O O P   M O V E M E N T S * * * * *" << endl;
+		  cout << endl << endl << "*** PLAYER: " << *players[i] << " TROOP MOVEMENTS ***" << endl;
+		  cout << "*** move from (-1 to end): ***" << endl;
 		  cin >> input;
 		  if( input>=-1 && input<(int)player_countries.size() )
 		    {
 		      gotValidInput=true;
 		    }
+		  
 		}
 
-	    if( input == -1 )
-	      {
-		cerr << endl << "*** end turn ***" << endl;
-	      }
-	    else
-	      {
-		Country * starting_from = player_countries[input];
+	      if( input == -1 )
+		{
+		  cerr << endl << "*** end turn ***" << endl;
+		}
+	      else
+		{
+		  Country * starting_from = player_countries[input];
 
 
-		vector<Country*> friendlies = starting_from->getFriendlyNeighbors();
+		  vector<Country*> friendlies = starting_from->getFriendlyNeighbors();
 
-		gotValidInput=false;
-		int input2;
-		while( !gotValidInput )
-		  {
-		    clearHalf();
-		    displayCountriesFriendlyNeighbors(starting_from);
-		    cout << "   move to? (-1 to cancel) (-2 to view world)" << endl;
-		    cin >> input2;
-		    if( input2>=-1 && input2<(int)player_countries.size() )
-		      {
-			gotValidInput=true;
-		      }
-		    if( input2 == -1 )
-		      {
-			displayAllCountries();
-		      }
-		  }
+		  gotValidInput=false;
+		  int input2;
+		  while( !gotValidInput )
+		    {
+		      clearHalf();
+		      displayCountriesFriendlyNeighbors(starting_from);
+		      cout << "   move to? (-1 to cancel)" << endl;
+		      cin >> input2;
+		      if( input2>=-1 && input2<(int)player_countries.size() )
+			{
+			  gotValidInput=true;
+			}
+		    }
 
-		friendlies[input2]->addTroops(1);
-		starting_from->troopReduction();
-	      }
-	  }
-	/* ==================================== */
-      }
+		  if( input2 != -1 )
+		    {
+		      friendlies[input2]->addTroops(1);
+		      starting_from->troopReduction();
+		    }
+		}
+	    }
+	  /* ==================================== */
+	}
 
-    // calculate additions
+      /* DISTRIBUTE TROOPS */
+      // calculate additions
+      for( int i=0; i<players.size(); i++ )
+	{
+	  int additional_troops = getNumberOfPlayersCountries(i)/3;;
+	  for( int j = 0; j < additional_troops; j++ )
+	    {
+	      clearHalf();	
+	      displayMap();
 
-    for( int i=0; i<players.size(); i++ )
-      {
-	//clearHalf();	
-	//cout << "*** DISTRIBUTE TROOPS ***" << endl;
-	int additional_troops;// = getNumberOfPlayersCountries(i)/3;
-	//cout << "*** PLAYER: " << *players[i] << " has " << additional_troops << " troops that need to be placed ***" << endl;
-	for( int j = 0; j < additional_troops; j++ )
-	  {
-	    clearHalf();	
-	    cout << "*** DISTRIBUTE TROOPS ***" << endl;
-	    additional_troops = getNumberOfPlayersCountries(i)/3;
-	    cout << "*** PLAYER: " << *players[i] << " has " << additional_troops << " troops that need to be placed ***" << endl;
-	    displayPlayersCountries(i);
-	    vector<Country*> v = getPlayersCountries(i);
-	    cout << ">> where would you like to place one?" << endl;
-	    gotValidInput = false;
-	    while( !gotValidInput )
-	      {
-		int input3;
-		cin >> input3;
+	      cout << "*** DISTRIBUTE TROOPS ***" << endl;
+	      cout << "*** PLAYER: " << *players[i] << " has " << (additional_troops-j) << " troops that need to be placed ***" << endl;
+	      
+	      displayPlayersCountries(i);
+	      vector<Country*> v = getPlayersCountries(i);
+	      cout << ">> where would you like to place one?" << endl;
+	      gotValidInput = false;
+	      while( !gotValidInput )
+		{
+		  int input3;
+		  cin >> input3;
 
-		if( input3 >= 0 && input3 < (int)v.size() )
-		  {
-		    v[input3]->addTroops(1);
-		    gotValidInput = true;
-		  }
-		else if( input3 = -2 )
-		  {
-		    displayAllCountries();
-		  }
-		else
-		  {
-		    cout << "*** invalid input ***" << endl;
-		  }
-	      }
-	    
-	    
-	  }
-      }
-
-	    
+		  if( input3 >= 0 && input3 < (int)v.size() )
+		    {
+		      v[input3]->addTroops(1);
+		      gotValidInput = true;
+		    }
+		  else if( input3 = -2 )
+		    {
+		      displayAllCountries();
+		    }
+		  else
+		    {
+		      cout << "*** invalid input ***" << endl;
+		    }
+		}
+	    }
+	}
+      /* ------------ distribute troops ----------- */
     }
  
   
- deleteAll();
+  deleteAll();
   
- return 0;
+  return 0;
 }
 
 
 /*
       
-                                                                                               ________       ________       ________       ________      
-<-                                                                                            [  URAL  ]-----[ SIBERA ]-----[ YAKTSK ]-----[ KMCHTK ]--->
+  ________       ________       ________       ________      
+  <-                                                                                            [  URAL  ]-----[ SIBERA ]-----[ YAKTSK ]-----[ KMCHTK ]--->
   \                                                                                           |___00___|     [___00___] \   [___00___] ____|___00___|    
-   \                                                                                     ____/    ||    \____    ||    \ \__    ||    /   /    ||
-    \________       ________       ________       ________       ________       ________/      ___||___      \___||___  \   \___||___/   /  ___||___      
-    [ ALASKA ] --- [ NW TER ] --- [ GRNLND ]-----[ ICELND ]-----[ SCNDVA ]-----[ UKRANE ]-----[ AFGHAN ]-----[ CHINA  ] |   [ IRKTSK ]  /  [ JAPAN  ] 
-    |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     |___00___|     [___00___] |   [___00___] /   |___00___|    
-        ||    ____/    ||    ____/    ||             ||    ____/    ||    ____/    ||   \_____    ||   \_____    ||   \_ \__    ||    / ___/
-     ___||___/      ___||___/      ___||___       ___||___/      ___||___/      ___||___      \___||___      \___||___  \___\___||___/_/   
-    [ ALBRTA ]-----[ ONTARO ]-----[ QUEBEC ]     [ BRITAN ]-----[ N. EUR ]-----[ S. EUR ]-----[ M EAST ]-----[ INDIA  ]     [ MONGOL ] 
-    |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     
-        ||    ____/    ||    ____/                         \____    ||    _____/         \____    ||    \        ||
-     ___||___/      ___||___/                                   \___||___/      ________      \___||___  \    ___||___       ________       ________      
-    [ WESTUS ]-----[ EASTUS ]                                   [ W. EUR |-----[ N AFRC ]-----[ EGYPT  ]  )  [  SIAM  ]-----[ INDONS ]-----[ NGUNEA ] 
-    |___00___|     [___00___]                                   [___00___]     [___00___]     |___00___| /   [___00___]     [___00___]     |___00___|    
-              \____    ||                                                 _____/   ||   \____     ||    /                       ||    _____/   ||
-                   \___||___       ________       _______________________/      ___||___     \____||___/                     ___||___/      ___||___      
-                   [ CENTAM ]-----[ VENZLA ]-----[        BRAZIL         ]     [ CONGO  ]-----[ E AFRC ]                    [ WAUSTR ]-----[ EAUSTR ] 
-                   [___00___]     [___00___]     |__________00___________]     [___00___]     |___00___|                    [___00___]     |___00___|    
-                                            \____    ||             ||                   \____    ||    \____
-                                                 \___||___       ___||___                     \___||___      \________  
-                                                 [  PERU  ]-----[ ARGENT ]                    [ S AFRC ]-----[ MADSGR ] 
-                                                 |___00___|     [___00___]                    |___00___|     [___00___] 
+  \                                                                                     ____/    ||    \____    ||    \ \__    ||    /   /    ||
+  \________       ________       ________       ________       ________       ________/      ___||___      \___||___  \   \___||___/   /  ___||___      
+  [ ALASKA ] --- [ NW TER ] --- [ GRNLND ]-----[ ICELND ]-----[ SCNDVA ]-----[ UKRANE ]-----[ AFGHAN ]-----[ CHINA  ] |   [ IRKTSK ]  /  [ JAPAN  ] 
+  |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     |___00___|     [___00___] |   [___00___] /   |___00___|    
+  ||    ____/    ||    ____/    ||             ||    ____/    ||    ____/    ||   \_____    ||   \_____    ||   \_ \__    ||    / ___/
+  ___||___/      ___||___/      ___||___       ___||___/      ___||___/      ___||___      \___||___      \___||___  \___\___||___/_/   
+  [ ALBRTA ]-----[ ONTARO ]-----[ QUEBEC ]     [ BRITAN ]-----[ N. EUR ]-----[ S. EUR ]-----[ M EAST ]-----[ INDIA  ]     [ MONGOL ] 
+  |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     
+  ||    ____/    ||    ____/                         \____    ||    _____/         \____    ||    \        ||
+  ___||___/      ___||___/                                   \___||___/      ________      \___||___  \    ___||___       ________       ________      
+  [ WESTUS ]-----[ EASTUS ]                                   [ W. EUR |-----[ N AFRC ]-----[ EGYPT  ]  )  [  SIAM  ]-----[ INDONS ]-----[ NGUNEA ] 
+  |___00___|     [___00___]                                   [___00___]     [___00___]     |___00___| /   [___00___]     [___00___]     |___00___|    
+  \____    ||                                                 _____/   ||   \____     ||    /                       ||    _____/   ||
+  \___||___       ________       _______________________/      ___||___     \____||___/                     ___||___/      ___||___      
+  [ CENTAM ]-----[ VENZLA ]-----[        BRAZIL         ]     [ CONGO  ]-----[ E AFRC ]                    [ WAUSTR ]-----[ EAUSTR ] 
+  [___00___]     [___00___]     |__________00___________]     [___00___]     |___00___|                    [___00___]     |___00___|    
+  \____    ||             ||                   \____    ||    \____
+  \___||___       ___||___                     \___||___      \________  
+  [  PERU  ]-----[ ARGENT ]                    [ S AFRC ]-----[ MADSGR ] 
+  |___00___|     [___00___]                    |___00___|     [___00___] 
 
 */
