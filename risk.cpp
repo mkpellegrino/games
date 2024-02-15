@@ -61,13 +61,15 @@
 #define SIAM 40
 #define KAMCHATKA 41
   
-
+bool land_grab_phase = false;
+bool troop_placement_phase = false;
+bool attack_phase = false;
 using namespace std;
 
 vector<int> attacker_dice;
 vector<int> defender_dice;
 
-
+class Country;
 
 class Player
 {
@@ -81,6 +83,7 @@ public:
     name = s;
     strategy = strat;
     unplaced_troops = t;
+    ai=false;
   }
   
   ~Player()
@@ -95,24 +98,37 @@ public:
 
   void setUnplacedTroops(int i){ unplaced_troops = i;}
   int getUnplacedTroops(){ return unplaced_troops; }
+  void setAI(bool b)
+  {
+    ai=b;
+  }
+  bool getAI()
+  {
+    return ai;
+  }
+
+  int chooseInitialPlacement(vector<Country*> v);
 private:
   string * name;
+
+  // Strategies
+  // 1 -
+  //    Agressive (battle whenever possible)
+  //    Try to get countries that have many connecting links
   int strategy;
   int unplaced_troops;
   int order;
+  bool ai;
 };
 
 ostream& operator <<(ostream& out, const Player& p)
 {
-  /* $$$ */
-
   out << "\e[1;" << to_string(p.order+33)<< "m";
   out << *p.name;
   out << "\e[38;5;40m";
   
   return out;
-}; 
-
+};
 
 vector<Player*> players;
 
@@ -168,6 +184,7 @@ public:
   }
   int getNumberOfFriendlyNeighbors();
   int getNumberOfHostileNeighbors();
+  int getNumberOfNeighbors(){return bordering_country.size();}
   void setX( int newx )
   {
     x = newx;
@@ -270,7 +287,6 @@ vector<Country*> Country::getHostileNeighbors()
   return return_vector;
 }
 
-
 ostream& operator <<(ostream& out, const Country& c)
 {
   out << "\e[1;" << to_string(c.player+33)<< "m";
@@ -304,8 +320,37 @@ void Continent::addCountry( Country * c )
   return;
 }
 
-
 vector<Country*> countries;
+
+
+int Player::chooseInitialPlacement(vector<Country*> v)
+{
+  int return_value=0;
+  /* another way to do this is to get a list of all the countries that */
+  /* are owneed by -1 and get the one with the most amount of links */
+  if( land_grab_phase )
+    {
+      int max_value = 0;
+      for( int i=0; i<v.size(); i++ )
+	{
+	  if( v[i]->getNumberOfNeighbors() > max_value)
+	    {
+	      max_value = v[i]->getNumberOfNeighbors();
+	      return_value = i;
+	    }
+	}
+#ifdef DEBUG
+      cerr << endl << *v[return_value] << " has " << max_value << "connections" << endl;
+      cin >> max_value;
+#endif
+    }
+  else if( troop_placement_phase )
+    {
+      return_value=rand() % v.size();
+    }
+  return return_value;
+}
+
 
 void displayPlayers()
 {
@@ -452,22 +497,22 @@ void displayMap()
   cout << "  \\                                                                                           |________|     |________| \\   |________| ____|________|    " << endl;
   cout << "   \\                                                                                     ____/    |     \\____    |     \\ \\__    |     /   /    | " << endl;
   cout << "    \\________       ________       ________       ________       ________       ________/      ___|____      \\___|____  \\   \\___|____/   /  ___|____      " << endl;
-  cout << "    |        |-----|        |-----|        |-----|        |-----|        |-----|        |-----|        |-----|        | |   |        |  /  |        | " << endl;
-  cout << "    |________|     |________|     |________|     |________|     |________|     |________|     |________|     |________| |   |________| /   |________|    " << endl;
-  cout << "        |     ____/    |     ____/    |              |     ____/    |     ____/    |    \\_____    |    \\_____    |    \\_ \\__    |     / ___/" << endl;
-  cout << "     ___|____/      ___|____/      ___|____       ___|____/      ___|____/      ___|____      \\___|____      \\___|____  \\___\\___|____/_/   " << endl;
-  cout << "    |        |-----|        |-----|        |     |        |-----|        |-----|        |-----|        |-----|        |     |        | " << endl;
-  cout << "    |________|     |________|     |________|     |________|     |________|     |________|     |________|     |________|     |________|     " << endl;
-  cout << "        |     ____/    |     ____/                         \\____    |     _____/         \\____    |     \\        | " << endl;
-  cout << "     ___|____/      ___|____/                                   \\___|____/      ________      \\___|____  \\    ___|____       ________       ________  " << endl;    
+  cout << "    |        |-----|        |-----|        |-----|        |-----|        |-----|        |-----|        |-----|        |  |  |        |  /  |        | " << endl;
+  cout << "    |________|     |________|     |________|     |________|     |________|     |________|     |________|     |________|  |  |________| /   |________|    " << endl;
+  cout << "        |     ____/    |     ____/    |              |     ____/    |     ____/    |    \\_____    |    \\_____    |    \\\\ \\__    |     / ___/" << endl;
+  cout << "     ___|____/      ___|____/      ___|____       ___|____/      ___|____/      ___|____      \\___|____      \\___|___  \\\\___\\___|____/_/   " << endl;
+  cout << "    |        |-----|        |-----|        |     |        |-----|        |-----|        |-----|        |-----|       | |    |        | " << endl;
+  cout << "    |________|     |________|     |________|     |________|     |________|     |________|     |________|     |_______| |    |________|     " << endl;
+  cout << "        |     ____/    |     ____/                         \\____    |     _____/  |      \\____    |     \\        |     /        " << endl;
+  cout << "     ___|____/      ___|____/                                   \\___|____/      __|_____      \\___|____  \\    ___|____/      ________       ________  " << endl;    
   cout << "    |        |-----|        |                                   |        |-----|        |-----|        |  )  |        |-----|        |-----|        | " << endl;
   cout << "    |________|     |________|                                   |________|     |________|     |________| /   |________|     |________|     |________|    " << endl;
   cout << "              \\____    |                                                  _____/   |    \\____     |     /                       |     _____/   | " << endl;
-  cout << "                   \\___|____       ________       _______       _________/      ___|____     \\____|____/                     ___|____/      ___|____      " << endl;
+  cout << "                   \\___|____       ________       ________      _________/      ___|____     \\____|____/                     ___|____/      ___|____      " << endl;
   cout << "                   |        |-----|        |-----|        |____/               |        |-----|        |                    |        |-----|        | " << endl;
-  cout << "                   |________|     |________|     |________|    \\               |________|     |________|                    |________|     |________|    " << endl;
-  cout << "                                            \\____    |          \\                        \\____    |     \\____" << endl;
-  cout << "                                                 \\___|____      _\\_______                     \\___|____      \\________ " << endl; 
+  cout << "                   |________|     |________|     |________|                    |________|     |________|                    |________|     |________|    " << endl;
+  cout << "                                            \\____    |    \\_____                         \\____    |     \\____" << endl;
+  cout << "                                                 \\___|____      \\________                     \\___|____      \\________ " << endl; 
   cout << "                                                 |        |-----|        |                    |        |-----|        | " << endl;
   cout << "                                                 |________|     |________|                    |________|     |________| " << endl;
   for( int i=0; i<countries.size(); i++ )
@@ -478,6 +523,7 @@ void displayMap()
   cout << "\e[25;0H";
   return;
 }
+
 void displayAllCountries()
 {
   int rows=0;
@@ -522,9 +568,7 @@ int main()
   cout << " █████   █████ █████░░█████████  █████ ░░████" << endl;
   cout << "░░░░░   ░░░░░ ░░░░░  ░░░░░░░░░  ░░░░░   ░░░░ " << endl;
   cout << "coded by michael k pellegrino - february 2024" << endl << endl;                                           
-                                             
-                                             
-  
+
   bool gotValidInput=false;
 
   srand(time(NULL));   // Initialization of Random Number Generator, should only be called once.
@@ -542,23 +586,40 @@ int main()
 	  gotValidInput = true;
 	}
     }
-
+  gotValidInput=false;
+  
   for( int i=0; i<number_of_players; i++ )
-    {
-      players.push_back( new Player( new string( "Player " + to_string(i)), i)); 
+    {      
+      players.push_back( new Player( new string( "Player " + to_string(i)), i));
+      int isAI=0;
+      while( gotValidInput == false )
+	{
+	  cout << "Is " << *players[i] << " an AI? (1=Yes   2=No)" << endl;
+	  cin >> isAI;
+	  if( isAI !=1 && isAI !=2 )
+	    {
+	      cerr << "enter a 1 or a 2 please." << endl;
+	    }
+	  else
+	    {
+	      if( isAI == 1 ) players[i]->setAI(true);
+	      gotValidInput = true;
+	    }
+	}
+      gotValidInput=false;
     }
-
 
 
   gotValidInput = false;
   bool randomize_territories = false;
+  int input4=0;
   while( gotValidInput == false )
     {
       cout << "*** randomize territories (1 yes  -  2 no): " << endl;
-      cin >> number_of_players;
-      if( number_of_players <2 || number_of_players > 6 )
+      cin >> input4;
+      if( input4 != 1 && input4 !=2 )
 	{
-	  cerr << "enter a number from 2 to 6 please." << endl;
+	  cerr << "enter a 1 or a 2 please" << endl;
 	}
       else
 	{
@@ -604,36 +665,6 @@ int main()
   countries.push_back( new Country( new string("W Australia"), WESTERN_AUSTRALIA, 4, 8, new string("WAUSTR")));
   countries.push_back( new Country( new string("E Australia"), EASTERN_AUSTRALIA, 4, 9, new string("EAUSTR")));
 
-  /*
-    0               1             2              3              4              5             6               7               8            9
-    ________       ________       ________       ________      
-    <-                                                                                            [  URAL  ]-----[ SIBERA ]-----[ YAKTSK ]-----[ KMCHTK ]--->      0
-    \                                                                                           |___00___|     [___00___] \   [___00___] ____|___00___|    
-    \                                                                                     ____/    ||    \____    ||    \ \__    ||    /   /    ||
-    \________       ________       ________       ________       ________       ________/      ___||___      \___||___  \   \___||___/   /  ___||___      
-    [ ALASKA ] --- [ NW TER ] --- [ GRNLND ]-----[ ICELND ]-----[ SCNDVA ]-----[ UKRANE ]-----[ AFGHAN ]-----[ CHINA  ] |   [ IRKTSK ]  /  [ JAPAN  ]          1
-    |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     |___00___|     [___00___] |   [___00___] /   |___00___|    
-    ||    ____/    ||    ____/    ||             ||    ____/    ||    ____/    ||   \_____    ||   \_____    ||   \_ \__    ||    / ___/
-    ___||___/      ___||___/      ___||___       ___||___/      ___||___/      ___||___      \___||___      \___||___  \___\___||___/_/   
-    [ ALBRTA ]-----[ ONTARO ]-----[ QUEBEC ]     [ BRITAN ]-----[ N. EUR ]-----[ S. EUR ]-----[ M EAST ]-----[ INDIA  ]     [ MONGOL ]                         2
-    |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     
-    ||    ____/    ||    ____/                         \____    ||    _____/         \____    ||    \        ||
-    ___||___/      ___||___/                                   \___||___/      ________      \___||___  \    ___||___       ________       ________      
-    [ WESTUS ]-----[ EASTUS ]                                   [ W. EUR |-----[ N AFRC ]-----[ EGYPT  ]  )  [  SIAM  ]-----[ INDONS ]-----[ NGUNEA ]          3
-    |___00___|     [___00___]                                   [___00___]     [___00___]     |___00___| /   [___00___]     [___00___]     |___00___|    
-    \____    ||                                                 _____/   ||   \____     ||    /                       ||    _____/   ||
-    \___||___       ________       _______________________/      ___||___     \____||___/                     ___||___/      ___||___      
-    [ CENTAM ]-----[ VENZLA ]-----[        BRAZIL         ]     [ CONGO  ]-----[ E AFRC ]                    [ WAUSTR ]-----[ EAUSTR ]          4
-    [___00___]     [___00___]     |__________00___________]     [___00___]     |___00___|                    [___00___]     |___00___|    
-    \____    ||             ||                   \____    ||    \____
-    \___||___       ___||___                     \___||___      \________  
-    [  PERU  ]-----[ ARGENT ]                    [ S AFRC ]-----[ MADSGR ]                                        5
-    |___00___|     [___00___]                    |___00___|     [___00___] 
-
-  */
-
-
-
   countries.push_back( new Country( new string("Kamchatka"), KAMCHATKA, 0, 9, new string("KMCHTK")));
   countries.push_back( new Country( new string("Ural"), URAL, 0, 6, new string(" URAL")));
   countries.push_back( new Country( new string("Siberia"), SIBERIA, 0, 7, new string("SIBERA")));
@@ -655,17 +686,19 @@ int main()
 
   /* This is for random assignment of territories */
   // 35 armies each
-  int number_of_countries_each = 42/number_of_players;
-  //int which_country=0;
-  for( int i = 0; i < number_of_players; i++ )
+  if( input4 == 1 )
     {
-      for( int j=0; j<number_of_countries_each; j++ )
+      int number_of_countries_each = 42/number_of_players;
+      //int which_country=0;
+      for( int i = 0; i < number_of_players; i++ )
 	{
-	  //countries[j+i*number_of_countries_each]->setPlayer(i);
-	  //countries[j+i*number_of_countries_each]->setNumber(1);
+	  for( int j=0; j<number_of_countries_each; j++ )
+	    {
+	      countries[j+i*number_of_countries_each]->setPlayer(i);
+	      countries[j+i*number_of_countries_each]->setNumber(1);
+	    }
 	}
-    }
-  
+    }  
   // SORT THE COUNTRIES SO THAT WE CAN USE THE #DEFINE as an INDEX  
   sort(countries.begin(), countries.end(), [](auto const& lhs, auto const& rhs) {return lhs->getID() < rhs->getID();});
       
@@ -884,12 +917,29 @@ int main()
   countries[WESTERN_EUROPE]->addBorderingCountry( countries[NORTH_AFRICA] );
 
 
-  for( int i = 0; i < number_of_players; i++ )
+  int num_of_extra=0;
+  
+  if( input4 == 2 )
     {
-      players[i]->setUnplacedTroops( 50 - number_of_players*5 );
+      for( int i = 0; i < number_of_players; i++ )
+	{
+	  players[i]->setUnplacedTroops( 50 - number_of_players*5 );
+	}
+      num_of_extra = 50 - number_of_players*5;
+    }
+  else
+    {
+      for( int i = 0; i < number_of_players; i++ )
+	{
+	  players[i]->setUnplacedTroops( 36 - number_of_players*5 );
+	}
+      num_of_extra = 36 - number_of_players*5;
+
     }
 
-  for( int i=0; i< 50-number_of_players*5; i++ )
+  land_grab_phase = true;
+  
+  for( int i=0; i<num_of_extra; i++ )
     {
       for( int j=0; j<number_of_players; j++ )
 	{
@@ -903,6 +953,9 @@ int main()
 	  vector<Country*> v = getPlayersCountries(-1);
 	  if( v.size() == 0 )
 	    {
+	      troop_placement_phase = true;
+	      land_grab_phase = false;
+	      
 	      v = getPlayersCountries(j);
 	      displayPlayersCountries(j);
 	    }
@@ -915,8 +968,15 @@ int main()
 	  while( !gotValidInput )
 	    {
 	      int input3;
-	      cin >> input3;
-
+	      if( players[j]->getAI() )
+		{
+		  input3 = players[j]->chooseInitialPlacement(v);
+		}
+	      else
+		{
+		  cin >> input3;
+		}
+	      
 	      if( input3 >= 0 && input3 < (int)v.size() )
 		{
 		  v[input3]->addTroops(1);
@@ -940,6 +1000,10 @@ int main()
       // iterate through everyone's turn
 
       /*  **** GAME PLAY *** */
+      attack_phase = true;
+      land_grab_phase = false;
+      troop_placement_phase = false;
+
       for( int whosTurn=0; whosTurn < players.size(); whosTurn++ )
 	{
 	  bool still_their_turn = true;
