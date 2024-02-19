@@ -63,13 +63,23 @@
   
 bool land_grab_phase = false;
 bool troop_placement_phase = false;
+bool troop_movement_phase = false;
 bool attack_phase = false;
+
+#ifdef DEBUG
+int db_integer=0;
+#endif
+
 using namespace std;
 
 vector<int> attacker_dice;
 vector<int> defender_dice;
 
+// forward declarations
 class Country;
+class Region;
+void vectorToMenu(vector<Country*> v);
+void displayMap();
 
 class Player
 {
@@ -96,8 +106,8 @@ public:
   }
   friend ostream& operator <<(ostream& out, const Player& p);
 
-  void setUnplacedTroops(int i){ unplaced_troops = i;}
-  int getUnplacedTroops(){ return unplaced_troops; }
+  void setUnplacedTroops(int i){ unplaced_troops = i;};
+  int getUnplacedTroops(){ return unplaced_troops; };
   void setAI(bool b)
   {
     ai=b;
@@ -108,6 +118,11 @@ public:
   }
 
   int chooseInitialPlacement(vector<Country*> v);
+  int chooseCountryToMoveTroopsFrom(vector<Country*> v);
+  int chooseCountryToMoveTroopsTo(vector<Country*> v);
+  void setStrategy( int s ){ strategy = s; };
+
+  int moveTroops();
 private:
   string * name;
 
@@ -163,6 +178,7 @@ public:
     random_number = (rand() % 42);
   };
   ~Country();
+  string getName(){ return *name; };
   void setPlayer( int p ) { player = p; };
   void setNumber( int n ) { number_of_troops = n; };
   int getNumber() { return number_of_troops; };
@@ -185,6 +201,26 @@ public:
   int getNumberOfFriendlyNeighbors();
   int getNumberOfHostileNeighbors();
   int getNumberOfNeighbors(){return bordering_country.size();}
+  bool isIsolated()
+  {
+    bool return_value=false;
+    if( getNumberOfHostileNeighbors() == 0 )
+      {
+	return_value=true;
+      }
+    return return_value;
+  }
+
+  bool hasMoveableTroops()
+  {
+    bool return_value = false;
+    if( number_of_troops > 0 )
+      {
+	return_value = true;
+      }
+    return return_value;
+  }
+  
   void setX( int newx )
   {
     x = newx;
@@ -200,6 +236,9 @@ public:
     y=newy;
   }
 
+  void alreadyMovedFrom( bool b ) { already_moved_from = b; };
+  bool alreadyMovedFrom(){ return already_moved_from; };
+
   void map_print()
   {
     cout << "\e[1;" << to_string(player+33)<< "m";    
@@ -211,7 +250,10 @@ public:
   vector <Country*> getFriendlyNeighbors();
   vector <Country*> getHostileNeighbors();
   vector <Country*> getAllNeighbors();
+
+  friend bool operator==(const Country& lhs, const Country& rhs) { return(lhs.id == rhs.id); }
 private:
+  bool already_moved_from;
   vector<Country*> bordering_country;
   int id;
   string * name;
@@ -235,7 +277,7 @@ int Country::getNumberOfFriendlyNeighbors()
   int return_value=0;
   for( int i=0; i<bordering_country.size(); i++ )
     {
-      if( bordering_country[i]->getPlayer() == this->getPlayer() )
+      if( bordering_country[i]->getPlayer() == player)
 	{
 	  return_value++;
 	}
@@ -248,7 +290,7 @@ int Country::getNumberOfHostileNeighbors()
   int return_value=0;
   for( int i=0; i<bordering_country.size(); i++ )
     {
-      if( bordering_country[i]->getPlayer() != this->getPlayer() )
+      if( bordering_country[i]->getPlayer() != player )
 	{
 	  return_value++;
 	}
@@ -323,34 +365,380 @@ void Continent::addCountry( Country * c )
 vector<Country*> countries;
 
 
-int Player::chooseInitialPlacement(vector<Country*> v)
+int Player::chooseCountryToMoveTroopsFrom(vector<Country*> v)
 {
-  int return_value=0;
-  /* another way to do this is to get a list of all the countries that */
-  /* are owneed by -1 and get the one with the most amount of links */
-  if( land_grab_phase )
+  int return_value=-1;
+  // get a list of non-isolated countries that can be gotten to from this one
+  vector<int> isolated_countries;
+  for( int i=0; i<v.size(); i++ )
     {
-      int max_value = 0;
-      for( int i=0; i<v.size(); i++ )
+      if( v[i]->isIsolated() )
 	{
-	  if( v[i]->getNumberOfNeighbors() > max_value)
-	    {
-	      max_value = v[i]->getNumberOfNeighbors();
-	      return_value = i;
-	    }
+	  isolated_countries.push_back(i);
 	}
-#ifdef DEBUG
-      cerr << endl << *v[return_value] << " has " << max_value << "connections" << endl;
-      cin >> max_value;
-#endif
     }
-  else if( troop_placement_phase )
+  if( isolated_countries.size() > 0 )
     {
-      return_value=rand() % v.size();
+      return_value = rand() % isolated_countries.size();
+      v[return_value]->alreadyMovedFrom(true);
     }
   return return_value;
 }
 
+int Player::chooseCountryToMoveTroopsTo(vector<Country*> v)
+{
+  int return_value=-1;
+  
+  // get a list of non-isolated countries that can be gotten to from this one
+  vector<int> non_isolated_countries;
+  for( int i=0; i<v.size(); i++ )
+    {
+      if( !v[i]->isIsolated()  )
+	{
+	  non_isolated_countries.push_back(i);
+	}
+    }
+  if( non_isolated_countries.size() > 0 )
+    {
+      return_value = non_isolated_countries[rand() % non_isolated_countries.size()];
+    }
+  else
+    {
+      return_value = rand() % v.size();
+    }
+  //cout << "[" << return_value << "] choose country to move troops to" << endl;
+  //cin >> return_value;
+  
+  return return_value;
+}
+
+int Player::chooseInitialPlacement(vector<Country*> v)
+{
+  int return_value=rand() % v.size(); // default is randomness
+  
+  /* another way to do this is to get a list of all the countries that */
+  /* are owneed by -1 and get the one with the most amount of links */
+  if( land_grab_phase )
+    {
+      if( strategy == 1 ) /* find countries that have the most connections */
+	{
+	  return_value=0;
+	  int max_value = 0;
+	  for( int i=0; i<v.size(); i++ )
+	    {
+	      if( v[i]->getNumberOfNeighbors() > max_value)
+		{
+		  max_value = v[i]->getNumberOfNeighbors();
+		  return_value = i;
+		}
+	    }
+	}
+      else if( strategy == 2 ) /* find countries near countries that the player has */
+	{
+	  // search through list of possible countries
+	  // for one that has this player as a bordering country
+	  for( int i=0; i<v.size(); i++ )
+	    {
+	      vector<Country*> b = v[i]->getAllNeighbors();
+	      for( int j = 0; j< b.size(); j++ )
+		{
+		  if( b[j]->getPlayer() == order )
+		    {
+		      // we've found one!
+		      return_value = i;
+		      j=b.size();
+		      i=v.size();
+		    }
+		}
+	    }
+	}
+      else /* random */
+	{
+	  return_value = rand() % v.size();
+	}
+    }
+  else if( troop_placement_phase )
+    {
+      if( strategy == 1 )
+	{
+	  // put most troops in a well connected territory
+	  int rv = rand() % 100;
+	  if( rv > 25 )
+	    {
+	      // create a vector of the most connected territories
+	      vector<int> most_connected_territories;
+	      // find the max # of connections
+	      int max_value=0;
+	      for( int i=0; i<v.size(); i++ )
+		{
+		  if( v[i]->getNumberOfNeighbors() > max_value)
+		    {
+		      max_value = v[i]->getNumberOfNeighbors();
+		    }
+		}
+	      // reduce it by 1
+	      max_value--;
+	      for( int i=0; i<v.size(); i++ )
+		{
+		  if( v[i]->getNumberOfNeighbors() >= max_value)
+		    {
+		      most_connected_territories.push_back(i);
+		    }
+		}
+
+	      // pick one at random
+	      int rv2 = rand() % most_connected_territories.size();
+
+	      // return its number
+	      return_value = most_connected_territories[rv2];
+	    }
+	  else
+	    {
+	      // create a vector of the most connected territories
+	      vector<int> least_connected_territories;
+	      // find the max # of connections
+	      int max_value=0;
+	      for( int i=0; i<v.size(); i++ )
+		{
+		  if( v[i]->getNumberOfNeighbors() > max_value)
+		    {
+		      max_value = v[i]->getNumberOfNeighbors();
+		    }
+		}
+	      for( int i=0; i<v.size(); i++ )
+		{
+		  if( v[i]->getNumberOfNeighbors() < max_value)
+		    {
+		      least_connected_territories.push_back(i);
+		    }
+		}
+
+	      // pick one at random
+	      int rv2 = rand() % least_connected_territories.size();
+
+	      // return its number
+	      return_value = least_connected_territories[rv2];
+	    }
+	}
+      else if( strategy == 2 )
+	{
+	  // this is random for now
+	  // evenly distribute the troops
+	  return_value=rand() % v.size();
+	}
+      else
+	{
+	  // randomly distribute the troops
+	  return_value=rand() % v.size();
+	}
+    }
+  return return_value;
+}
+
+class ValidMove
+{
+public:
+  ValidMove(Country * s, Country * d)
+  {
+#ifdef DEBUG
+    cout << "creating ValidMove " << s->getName() << " and " << d->getName() << endl;
+    cin >> db_integer;
+#endif
+    source = s; destination = d;
+  };
+  ~ValidMove();
+  bool same( string s, string d )
+  {
+#ifdef DEBUG
+    cout << "s: " << s << endl
+	 << "d: " << d << endl
+	 << "source: " << source->getName() << endl
+	 << "destination: " << destination->getName() << endl;
+
+    cin >> db_integer;
+#endif
+    bool return_value = false;
+    if( (s == source->getName() && d == destination->getName()) || ( s == destination->getName() && d == source->getName() ))
+      {
+#ifdef DEBUG
+	cout << "match found" << endl;
+	cin >> db_integer;
+#endif
+	return_value = true;
+      }
+    return return_value;
+  };
+  
+private:
+  Country * source;
+  Country * destination;
+};
+
+vector<ValidMove*> validMoves;
+
+class Region
+{
+public:
+  Region(Country* c);
+  ~Region(){};
+  bool isIn(Country* c);
+  vector<Country*> getVector(){return r;};
+  void dump()
+  {
+    // for debugging purposes
+    for( int i=0; i<r.size(); i++ )
+      {
+	cout << *r[i] << endl;
+      }
+  };
+  friend ostream& operator <<(ostream& out, const Region& region);
+
+private:
+  void addFriendlies(Country* c);
+  
+  vector<Country*> r;
+};
+
+ostream& operator <<(ostream& out, const Region& region)
+{
+  for( int i = 0; i<region.r.size(); i++ )
+    out << region.r[i]->getName() << " ";
+  return out;
+};
+
+
+Region::Region(Country* c)
+{
+  // if the country (c) is already in 'r' then don't add it
+  r.push_back(c);
+  addFriendlies(c);
+};
+
+bool Region::isIn(Country* c)
+{
+  bool found = false;
+  for( int i=0; i<r.size(); i++ )
+    {
+      //cout << *r[i] << " ?==? " << *c << endl;
+      if( *r[i] == *c ) found=true;
+    }
+  
+  return found;
+}
+
+void Region::addFriendlies(Country* c)
+{
+  // look for these countries in the region
+  for( int i=0; i<c->getFriendlyNeighbors().size(); i++ )
+    {
+      if( !isIn(c->getFriendlyNeighbors()[i]) )
+	{
+	 
+	  //cout << "adding " << *c->getFriendlyNeighbors()[i] << endl;
+	  r.push_back(c->getFriendlyNeighbors()[i]);
+	  addFriendlies(c->getFriendlyNeighbors()[i]);
+	}
+    }
+}
+
+
+
+int Player::moveTroops()
+{
+#ifdef DEBUG
+  int db_input;
+  cerr << "players[" << order << "]->moveTroops()" << endl;
+#endif
+  vector<Region*> r;
+  int region_index=0;
+  for( int i=0; i<countries.size(); i++ )
+    {
+      if( countries[i]->getPlayer() == order )
+	{
+	  if( r.size() == 0 )
+	    {	      
+	      Region * tmpR = new Region( countries[i] );
+	      r.push_back( tmpR );
+	      cerr << "adding 1st region" << endl;
+	    }
+	  else
+	    {
+	      // before creating a new region, check to make
+	      // sure that countries[i] is not already part
+	      // of an existing region
+	      bool found=false;
+	      for( int j=0; j<r.size(); j++ )
+		{
+		  if( r[j]->isIn( countries[i] ) )
+		    {
+		      found = true;
+		    }		  
+		}
+	      if( !found )
+		{
+		  r.push_back( new Region( countries[i] ) );
+		  cerr << "adding another region" << endl;
+		}
+	    }
+	}
+    }
+
+  
+  // iterate over all the regions
+  for( int i=0; i<r.size(); i++ )
+    {
+      int moveable_troops = 0;
+      int non_isolated_countries = 0;
+      vector<Country*> v = r[i]->getVector();
+      if( v.size() > 1 )
+	{	  
+	  // count up all of the moveable troops in region i
+	  // only if there's more than one territory in region i
+	  // also count up the number of non-isolated countries
+	  for( int j=0; j<v.size(); j++ )
+	    {
+	      if( !v[j]->isIsolated() )
+		{
+		  cerr << *v[j] << " is not isolated" << endl;
+		    non_isolated_countries++;
+		}
+	      moveable_troops += (v[j]->getNumber()-1);
+	      v[j]->setNumber(1);
+	    }
+#ifdef DEBUG
+	  // displayMap();
+	  cout << "Region " << i << " has [" << moveable_troops << "] moveable troops and [" << non_isolated_countries << "] border countries.\t" << *r[i] << endl;
+#endif
+
+	  while( moveable_troops > 0 && v.size()>1)
+	    {
+	      for( int j=0; j<v.size(); j++ )
+		{
+		  if( v[j]->isIsolated() )
+		    {
+		      cout << "don't add troops to isolated country: " << *v[j] << endl;
+		    }
+		  else
+		    {
+		      v[j]->addTroops(1);
+		      moveable_troops--;
+		    }
+		  if( moveable_troops == 0 ) j=v.size();
+		}
+	    }
+	  
+
+	}
+#ifdef DEBUG
+  cin >> db_input;
+  displayMap();
+#endif
+    }
+
+  
+  
+  return -1;
+}
 
 void displayPlayers()
 {
@@ -524,6 +912,26 @@ void displayMap()
   return;
 }
 
+void vectorToMenu(vector<Country*> v)
+{
+  int rows=0;
+  for( int i = 0; i < v.size(); i++ )
+    {
+      cout << "(" << i << ") " << *v[i];
+      if( rows++ == 3 )
+	{
+	  cout << endl;
+	  rows=0;
+	}
+      else
+	{
+	  cout << "\t";
+	}
+    }
+  cout << endl << ": ";
+  return;
+}
+
 void displayAllCountries()
 {
   int rows=0;
@@ -591,6 +999,7 @@ int main()
   for( int i=0; i<number_of_players; i++ )
     {      
       players.push_back( new Player( new string( "Player " + to_string(i)), i));
+      players[i]->setStrategy(i);
       int isAI=0;
       while( gotValidInput == false )
 	{
@@ -991,12 +1400,14 @@ int main()
 	    }
 	}
     }
-  
+
+
+  //Region * r = new Region(countries[5]);
+  //r->dump();
+  //return -3;
   
   while(1)
     {
-
-
       // iterate through everyone's turn
 
       /*  **** GAME PLAY *** */
@@ -1007,6 +1418,9 @@ int main()
       for( int whosTurn=0; whosTurn < players.size(); whosTurn++ )
 	{
 	  bool still_their_turn = true;
+	  
+	  // if a player is wiped out... end their turn
+	  if( getPlayersCountries(whosTurn).size() == 0 ) still_their_turn = false;
 	  while( still_their_turn )
 	    {
 	      // create a vector of possible starting points
@@ -1018,15 +1432,7 @@ int main()
 	      int x=0;
 	      while(!gotValidInput)
 		{
-		  clearHalf();
-		  displayMap();
 		  // Display the vector of possible starting countries
-		  cout << endl << "*** Player: " << *players[whosTurn] << "'s turn ***" << endl;
-		  
-		  for( int i = 0; i < possible_countries_to_start_from.size(); i++ )
-		    {
-		      cout << "(" << i << ") " << *possible_countries_to_start_from[i] << endl;
-		    }
 		  if( possible_countries_to_start_from.size() == 0 )
 		    {
 		      gotValidInput=true;
@@ -1034,10 +1440,15 @@ int main()
 		    }
 		  else
 		    {
+		      clearHalf();
+		      displayMap();
+		      cout << endl << "*** Player: " << *players[whosTurn] << "'s turn ***" << endl;
 		      cout << endl << "*** Choose where your attack will originate from ***" << endl;
 		      cout << "(-1 to end turn)" << endl;
+		      vectorToMenu( possible_countries_to_start_from );
+		      
 		      cin >> x;
-		      clearHalf();
+		      
 		      if( x >= -1 && x < (int)possible_countries_to_start_from.size())
 			{
 			  gotValidInput=1;
@@ -1066,10 +1477,14 @@ int main()
 		  while( !gotValidInput )
 		    {
 		      clearHalf();
-		      cout << "*** you chose " << *c << " ***" << endl;
-		      displayCountriesHostileNeighbors(c);		      
+		      displayMap();
+		      cout << "*** you chose " << *c << " ***" << endl << endl;
+		      
 		      cout << endl << "*** Choose where your attack will take place ***" << endl;
 		      cout << "(-1 to exit)" << endl;
+
+		      vectorToMenu(list_of_hostile_neighbors);
+		      
 		      cin >> y;
 		      if( y>=-1 && y< (int)list_of_hostile_neighbors.size() )
 			{
@@ -1093,18 +1508,16 @@ int main()
 		  while( !gotValidInput )
 		    {
 		      clearHalf();
+		      displayMap();
+		      
 		      cout << endl << "*** you chose to attack " << *d << " from " << *c << " ***" << endl;
 
 		      // the attack will now take place
-		      cout << "how many troops do you want to use?" <<endl;
+		      cout << "how many troops do you want to use?  (max: " << c->getNumber()-1 << ")" <<endl;
 		      cin >> attacker_troops_total;
 		      if( attacker_troops_total>0 && attacker_troops_total<(int)(c->getNumber()) )
 			{
 			  gotValidInput=true;
-			}
-		      else if( attacker_troops_total == -2)
-			{
-			  displayAllCountries();
 			}
 		      else
 			{
@@ -1117,7 +1530,7 @@ int main()
 
 		  // remove the number of attacking troops from the originating country
 		  c->setNumber( c->getNumber() - attacker_troops_total );
-
+		  displayMap();
 		      
 		  bool no_one_has_won_yet = true;
 		  while( no_one_has_won_yet )
@@ -1223,68 +1636,105 @@ int main()
 
     
       // TROOP MOVEMENTS
-	
+
+#ifdef DEBUG
+      cout << "entering troop movement phase (type any number)" << endl;
+      cin >> db_integer;
+#endif
+      attack_phase = false;
+      troop_movement_phase = true;
       for( int i=0; i<players.size(); i++ )
 	{
 	  /* ==================================== */
+
+	  bool still_more_movements = true;
 	  int input = 0;
-	  while( input != -1 )
+	  if( getPlayersCountries(i).size() == 0 ) still_more_movements = false;
+	  while( still_more_movements )
 	    {
 	      vector<Country*> player_countries = getPlayersCountriesThatHaveFriendlyNeighborsWithMoreThanOneTroop(i);
 	      gotValidInput=false;
 	      if( player_countries.size() == 0 )
 		{
 		  gotValidInput = true;
-		  input = -1;
+		  still_more_movements = false;
 		}
-	      while( !gotValidInput )
+	      while( !gotValidInput && still_more_movements )
 		{
-		  
 		  clearHalf();
-		  for( int i=0; i<player_countries.size(); i++ )
-		    {
-		      cout << "(" << i << ") " << *player_countries[i] << endl;
-		    }
+		  displayMap();
 		  cout << "* * * * * T R O O P   M O V E M E N T S * * * * *" << endl;
-		  cout << endl << endl << "*** PLAYER: " << *players[i] << " TROOP MOVEMENTS ***" << endl;
-		  cout << "*** move from (-1 to end): ***" << endl;
-		  cin >> input;
+		  if( players[i]->getAI() )
+		    {
+		      //players[i]->chooseCountryToMoveTroopsFrom( player_countries );
+		      input = players[i]->moveTroops();
+		    }
+		  else
+		    {
+		      cout << endl << endl << "*** PLAYER: " << *players[i] << " TROOP MOVEMENTS ***" << endl;
+		      cout << "*** Choose a territory to move troops FROM from (-1 to end): ***" << endl;
+		      vectorToMenu( player_countries );
+		      cin >> input;
+		    }
 		  if( input>=-1 && input<(int)player_countries.size() )
 		    {
 		      gotValidInput=true;
 		    }
-		  
 		}
-
 	      if( input == -1 )
 		{
-		  cerr << endl << "*** end turn ***" << endl;
+		  //cerr << endl << "*** end turn ***" << endl;
+		  still_more_movements = false;
+		  //cin >> input;
 		}
 	      else
 		{
 		  Country * starting_from = player_countries[input];
-
-
-		  vector<Country*> friendlies = starting_from->getFriendlyNeighbors();
+		  Region * r = new Region( starting_from );
+		  vector<Country*> friendlies = r->getVector();
 
 		  gotValidInput=false;
 		  int input2;
 		  while( !gotValidInput )
 		    {
+		      displayMap();
 		      clearHalf();
-		      displayCountriesFriendlyNeighbors(starting_from);
-		      cout << "   move to? (-1 to cancel)" << endl;
-		      cin >> input2;
-		      if( input2>=-1 && input2<(int)player_countries.size() )
+		      if( players[i]->getAI() )
+			{
+			  input2 = -1;// players[i]->chooseCountryToMoveTroopsTo( friendlies );
+			}
+		      else
+			{
+			  cout << ">> Move to? (-1 to cancel)" << endl;
+			  vectorToMenu(friendlies);
+			  cin >> input2;
+			}
+		      
+		      if( input2>=-1 && input2<(int)friendlies.size() )
 			{
 			  gotValidInput=true;
 			}
+
 		    }
 
-		  if( input2 != -1 )
+		  if( input2 != -1 && gotValidInput )
 		    {
-		      friendlies[input2]->addTroops(1);
-		      starting_from->troopReduction();
+		      bool match_found = false;
+		      for( int i=0; i<validMoves.size(); i++ )
+			{
+			  if( validMoves[i]->same( friendlies[input2]->getName(), starting_from->getName() ) )
+			    {
+			      match_found = true;
+			    }
+			}
+
+		      if( !match_found )
+			{
+			  cout << "Moving from " << *starting_from << " to " << *friendlies[input2] << endl;
+			  friendlies[input2]->addTroops(1);
+			  starting_from->troopReduction();			  
+			  validMoves.push_back( new ValidMove( starting_from, friendlies[input2] ));
+			}
 		    }
 		}
 	    }
@@ -1293,34 +1743,50 @@ int main()
 
       /* DISTRIBUTE TROOPS */
       // calculate additions
+      troop_placement_phase = true;
+      attack_phase = false;
+      land_grab_phase = false;
+      troop_movement_phase = false;
+
+      
       for( int i=0; i<players.size(); i++ )
 	{
-	  int additional_troops = getNumberOfPlayersCountries(i)/3;;
+	  int additional_troops=0;
+	  if( getNumberOfPlayersCountries(i) == 0 )
+	    {
+	      additional_troops = 0;
+	    }
+	  else
+	    {
+	      additional_troops = getNumberOfPlayersCountries(i)/3;
+	    }
 	  for( int j = 0; j < additional_troops; j++ )
 	    {
-	      clearHalf();	
-	      displayMap();
-
-	      cout << "*** DISTRIBUTE TROOPS ***" << endl;
-	      cout << "*** PLAYER: " << *players[i] << " has " << (additional_troops-j) << " troops that need to be placed ***" << endl;
-	      
-	      displayPlayersCountries(i);
 	      vector<Country*> v = getPlayersCountries(i);
-	      cout << ">> where would you like to place one?" << endl;
 	      gotValidInput = false;
 	      while( !gotValidInput )
 		{
+		  clearHalf();	
+		  displayMap();
+
 		  int input3;
-		  cin >> input3;
+		  if( !players[i]->getAI() )
+		    {
+		      cout << "*** DISTRIBUTE TROOPS ***" << endl;
+		      cout << "*** PLAYER: " << *players[i] << " has " << (additional_troops-j) << " troops that need to be placed ***" << endl;
+		      vectorToMenu(v);
+		      cout << ">> where would you like to place one?" << endl;
+		      cin >> input3;
+		    }
+		  else
+		    {
+		      input3 = players[i]->chooseInitialPlacement(v);
+		    }
 
 		  if( input3 >= 0 && input3 < (int)v.size() )
 		    {
 		      v[input3]->addTroops(1);
 		      gotValidInput = true;
-		    }
-		  else if( input3 = -2 )
-		    {
-		      displayAllCountries();
 		    }
 		  else
 		    {
@@ -1337,32 +1803,3 @@ int main()
   
   return 0;
 }
-
-
-/*
-      
-  ________       ________       ________       ________      
-  <-                                                                                            [  URAL  ]-----[ SIBERA ]-----[ YAKTSK ]-----[ KMCHTK ]--->
-  \                                                                                           |___00___|     [___00___] \   [___00___] ____|___00___|    
-  \                                                                                     ____/    ||    \____    ||    \ \__    ||    /   /    ||
-  \________       ________       ________       ________       ________       ________/      ___||___      \___||___  \   \___||___/   /  ___||___      
-  [ ALASKA ] --- [ NW TER ] --- [ GRNLND ]-----[ ICELND ]-----[ SCNDVA ]-----[ UKRANE ]-----[ AFGHAN ]-----[ CHINA  ] |   [ IRKTSK ]  /  [ JAPAN  ] 
-  |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     |___00___|     [___00___] |   [___00___] /   |___00___|    
-  ||    ____/    ||    ____/    ||             ||    ____/    ||    ____/    ||   \_____    ||   \_____    ||   \_ \__    ||    / ___/
-  ___||___/      ___||___/      ___||___       ___||___/      ___||___/      ___||___      \___||___      \___||___  \___\___||___/_/   
-  [ ALBRTA ]-----[ ONTARO ]-----[ QUEBEC ]     [ BRITAN ]-----[ N. EUR ]-----[ S. EUR ]-----[ M EAST ]-----[ INDIA  ]     [ MONGOL ] 
-  |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     |___00___|     [___00___]     [___00___]     
-  ||    ____/    ||    ____/                         \____    ||    _____/         \____    ||    \        ||
-  ___||___/      ___||___/                                   \___||___/      ________      \___||___  \    ___||___       ________       ________      
-  [ WESTUS ]-----[ EASTUS ]                                   [ W. EUR |-----[ N AFRC ]-----[ EGYPT  ]  )  [  SIAM  ]-----[ INDONS ]-----[ NGUNEA ] 
-  |___00___|     [___00___]                                   [___00___]     [___00___]     |___00___| /   [___00___]     [___00___]     |___00___|    
-  \____    ||                                                 _____/   ||   \____     ||    /                       ||    _____/   ||
-  \___||___       ________       _______________________/      ___||___     \____||___/                     ___||___/      ___||___      
-  [ CENTAM ]-----[ VENZLA ]-----[        BRAZIL         ]     [ CONGO  ]-----[ E AFRC ]                    [ WAUSTR ]-----[ EAUSTR ] 
-  [___00___]     [___00___]     |__________00___________]     [___00___]     |___00___|                    [___00___]     |___00___|    
-  \____    ||             ||                   \____    ||    \____
-  \___||___       ___||___                     \___||___      \________  
-  [  PERU  ]-----[ ARGENT ]                    [ S AFRC ]-----[ MADSGR ] 
-  |___00___|     [___00___]                    |___00___|     [___00___] 
-
-*/
