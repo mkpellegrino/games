@@ -80,6 +80,7 @@ class Country;
 class Region;
 void vectorToMenu(vector<Country*> v);
 void displayMap();
+int getNumberOfPlayersCountries( int p );
 
 class Player
 {
@@ -644,11 +645,18 @@ void Region::addFriendlies(Country* c)
 
 
 int Player::moveTroops()
-{
+{  
 #ifdef DEBUG
   int db_input;
-  cerr << "players[" << order << "]->moveTroops()" << endl;
+  cerr << "*** AI ***" << endl << "players[" << order << "]->moveTroops()" << endl;
 #endif
+  if( getNumberOfPlayersCountries( order ) == 0 )
+    {
+#ifdef DEBUG
+      cerr << "*** AI ***" << endl << "players[" << order << "] is wiped out" << endl;
+#endif
+      return -1;
+    }
   vector<Region*> r;
   int region_index=0;
   for( int i=0; i<countries.size(); i++ )
@@ -1401,10 +1409,6 @@ int main()
 	}
     }
 
-
-  //Region * r = new Region(countries[5]);
-  //r->dump();
-  //return -3;
   
   while(1)
     {
@@ -1421,6 +1425,7 @@ int main()
 	  
 	  // if a player is wiped out... end their turn
 	  if( getPlayersCountries(whosTurn).size() == 0 ) still_their_turn = false;
+	  if( getPlayersCountriesThatHaveHostileNeighborsWithMoreThanOneTroop(whosTurn).size() == 0 ) still_their_turn = false;
 	  while( still_their_turn )
 	    {
 	      // create a vector of possible starting points
@@ -1429,6 +1434,7 @@ int main()
 	      
 	      
 	      gotValidInput=false;
+	      
 	      int x=0;
 	      while(!gotValidInput)
 		{
@@ -1648,8 +1654,8 @@ int main()
 	  /* ==================================== */
 
 	  bool still_more_movements = true;
-	  int input = 0;
-	  if( getPlayersCountries(i).size() == 0 ) still_more_movements = false;
+	  int input = -1;
+	  if( getPlayersCountries(i).size() <= 1 ) still_more_movements = false;
 	  while( still_more_movements )
 	    {
 	      vector<Country*> player_countries = getPlayersCountriesThatHaveFriendlyNeighborsWithMoreThanOneTroop(i);
@@ -1667,7 +1673,9 @@ int main()
 		  if( players[i]->getAI() )
 		    {
 		      //players[i]->chooseCountryToMoveTroopsFrom( player_countries );
+		      //cout << "PRE" << endl;
 		      input = players[i]->moveTroops();
+		      //cout << "POST" << endl;
 		    }
 		  else
 		    {
@@ -1676,11 +1684,13 @@ int main()
 		      vectorToMenu( player_countries );
 		      cin >> input;
 		    }
+		  
 		  if( input>=-1 && input<(int)player_countries.size() )
 		    {
 		      gotValidInput=true;
 		    }
 		}
+	      
 	      if( input == -1 )
 		{
 		  //cerr << endl << "*** end turn ***" << endl;
@@ -1714,6 +1724,7 @@ int main()
 			{
 			  gotValidInput=true;
 			}
+		     
 
 		    }
 
@@ -1748,7 +1759,9 @@ int main()
       land_grab_phase = false;
       troop_movement_phase = false;
 
-      
+      int input5;
+      cout << "*** (1) ***" << endl;
+      cin >> input5;
       for( int i=0; i<players.size(); i++ )
 	{
 	  int additional_troops=0;
@@ -1760,6 +1773,7 @@ int main()
 	    {
 	      additional_troops = getNumberOfPlayersCountries(i)/3;
 	    }
+	  
 	  for( int j = 0; j < additional_troops; j++ )
 	    {
 	      vector<Country*> v = getPlayersCountries(i);
@@ -1774,18 +1788,27 @@ int main()
 		    {
 		      cout << "*** DISTRIBUTE TROOPS ***" << endl;
 		      cout << "*** PLAYER: " << *players[i] << " has " << (additional_troops-j) << " troops that need to be placed ***" << endl;
-		      vectorToMenu(v);
 		      cout << ">> where would you like to place one?" << endl;
+		      vectorToMenu(v);
 		      cin >> input3;
 		    }
 		  else
 		    {
-		      input3 = players[i]->chooseInitialPlacement(v);
+		      if( additional_troops > 0 )
+		      {
+			cout << "PRE" << endl;
+			input3 = players[i]->chooseInitialPlacement(v);
+			cout << "POST" << endl;
+		      }
 		    }
 
 		  if( input3 >= 0 && input3 < (int)v.size() )
 		    {
 		      v[input3]->addTroops(1);
+		      gotValidInput = true;
+		    }
+		  else if( input3 == -1 )
+		    {
 		      gotValidInput = true;
 		    }
 		  else
