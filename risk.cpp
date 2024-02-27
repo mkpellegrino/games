@@ -92,7 +92,7 @@ class Country;
 class Region;
 void vectorToMenu(vector<Country*> v);
 void displayMap();
-int howManyLeft();
+int howManyPlayersLeft();
 int getNumberOfPlayersCountries( int p );
 int getNumericInput();
 
@@ -137,6 +137,7 @@ public:
   int chooseInitialPlacement(vector<Country*> v);
   int chooseCountryToMoveTroopsFrom(vector<Country*> v);
   int chooseCountryToMoveTroopsTo(vector<Country*> v);
+  int getStrategy(){ return strategy; };
   void setStrategy( int s )
   {
     strategy = s;
@@ -380,14 +381,48 @@ ostream& operator <<(ostream& out, const Country& c)
 class Continent
 {
 public:
+  Continent( string s, int i ){ name = s; bonus=i; };
+  
   Continent(){number_of_countries=0;};
   ~Continent();
   void addCountry( Country * c );
+  void setBonus( int i ){ bonus = i;};
+  int getBonus(){ return bonus; };
   
+  int ownedBy();
+
+  friend ostream& operator <<(ostream& out, const Continent& c);
+
 private:
   vector<Country*> my_countries;
   int number_of_countries;
+  string name;
+  int bonus;
 };
+
+ostream& operator <<(ostream& out, const Continent& c)
+{
+  out << c.name;
+  return out;
+};
+
+
+int Continent::ownedBy()
+{
+  if( my_countries.size() < 3 )
+    {
+      cerr << "an error has occured... this continent has empty territories." << endl;
+      return -1;
+    }
+  
+  int return_value = my_countries[0]->getPlayer();
+  for( int i=1; i<my_countries.size(); i++ )
+    {
+      if( my_countries[i]->getPlayer() != return_value )
+	return -1;
+    }
+  return return_value;
+}
 
 void Continent::addCountry( Country * c )
 {
@@ -397,6 +432,7 @@ void Continent::addCountry( Country * c )
 }
 
 vector<Country*> countries;
+vector<Continent*> continents;
 
 
 int Player::chooseCountryToMoveTroopsFrom(vector<Country*> v)
@@ -454,23 +490,28 @@ int Player::chooseInitialPlacement(vector<Country*> v)
   /* are owneed by -1 and get the one with the most amount of links */
   if( land_grab_phase )
     {
-      if( strategy == 1 ) /* find countries that have the most connections */
+      switch( strategy )
 	{
-	  
-	  return_value=0;
-	  int max_value = 0;
-	  for( int i=0; i<v.size(); i++ )
-	    {
-	      if( v[i]->getNumberOfNeighbors() > max_value)
-		{
-		  max_value = v[i]->getNumberOfNeighbors();
-		  return_value = i;
-		}
-	    }
-	  cerr << "*** agressive strategy choosing to place a troop on country " << *v[return_value] << " ***" << endl;
-	}
-      else if( strategy == 2 ) /* find countries near countries that the player has */
-	{
+	case 0:
+	  // defensive strategy (build up!)
+	  break;
+	case 1:
+	  {
+	    
+	    return_value=0;
+	    int max_value = 0;
+	    for( int i=0; i<v.size(); i++ )
+	      {
+		if( v[i]->getNumberOfNeighbors() > max_value)
+		  {
+		    max_value = v[i]->getNumberOfNeighbors();
+		    return_value = i;
+		  }
+	      }
+	    cerr << "*** agressive strategy choosing to place a troop on country " << *v[return_value] << " ***" << endl;
+	  }
+	  break;
+	case 2:
 	  // search through list of possible countries
 	  // for one that has this player as a bordering country
 	  for( int i=0; i<v.size(); i++ )
@@ -486,102 +527,185 @@ int Player::chooseInitialPlacement(vector<Country*> v)
 		      i=v.size();
 		    }
 		}
+	      cerr << "*** community strategy choosing to place a troop on country " << *v[return_value] << " ***" << endl;
 	    }
-	  cerr << "*** community strategy choosing to place a troop on country " << *v[return_value] << " ***" << endl;
-	}
-      else /* random */
-	{
+	  break;
+	default:
 	  return_value = rand() % v.size();
 	  cerr << "*** random strategy choosing to place a troop on country " << *v[return_value] << " ***" << endl;
 	}
     }
   else if( troop_placement_phase )
     {
-      if( strategy == 1 )
+      switch(strategy)
 	{
-	  // put most troops in a well connected territory
-	  int rv = rand() % 100;
-	  cerr << "*** TROOP PLACEMENT (strategy 1) ***" << endl << "\t\trandom value (rv): " << rv << endl;
-      
+	case 0:
+	  // build up one country
+	  return_value = 0;
+	  break;
+	case 1:
+	  {
+	    // put most troops in a well connected territory
+	    int rv = rand() % 100;
+	    cerr << "*** TROOP PLACEMENT (strategy 1) ***" << endl << "\t\trandom value (rv): " << rv << endl;
 	  
-	  if( rv > 25 )
-	    {
-	      // create a vector of the most connected territories
-	      vector<int> most_connected_territories;
-	      // find the max # of connections
-	      int max_value=0;
-	      for( int i=0; i<v.size(); i++ )
-		{
-		  if( v[i]->getNumberOfNeighbors() > max_value)
-		    {
-		      max_value = v[i]->getNumberOfNeighbors();
-		    }
-		}
-	      // reduce it by 1
-	      max_value--;
+	    if( rv > 25 )
+	      {
+		// create a vector of the most connected territories
+		vector<int> most_connected_territories;
+		// find the max # of connections
+		int max_value=0;
+		for( int i=0; i<v.size(); i++ )
+		  {
+		    if( v[i]->getNumberOfNeighbors() > max_value)
+		      {
+			max_value = v[i]->getNumberOfNeighbors();
+		      }
+		  }
+		// reduce it by 1
+		max_value--;
 
 	      
-	      for( int i=0; i<v.size(); i++ )
-		{
-		  if( v[i]->getNumberOfNeighbors() >= max_value)
-		    {
-		      most_connected_territories.push_back(i);
-		    }
-		}
-	      cerr << "\t\tmost_connected_territories.size(): " << most_connected_territories.size() << endl;
-	      // pick one at random
-	      int rv2 = rand() % most_connected_territories.size();
-	      cerr << "\t\trv2: " << rv2 << endl;
-	      // return its number
-	      return_value = most_connected_territories[rv2];
-	    }
-	  else
-	    {
+		for( int i=0; i<v.size(); i++ )
+		  {
+		    if( v[i]->getNumberOfNeighbors() >= max_value)
+		      {
+			most_connected_territories.push_back(i);
+		      }
+		  }
+		cerr << "\t\tmost_connected_territories.size(): " << most_connected_territories.size() << endl;
+		// pick one at random
+		int rv2 = rand() % most_connected_territories.size();
+		cerr << "\t\trv2: " << rv2 << endl;
+		// return its number
+		return_value = most_connected_territories[rv2];
+	      }
+	    else
+	      {
 
-	      // THIS IS CAUSEING A FLOATING POINT EXCEPTION
+		// THIS IS CAUSEING A FLOATING POINT EXCEPTION
 	      
-	      // create a vector of the least connected territories
-	      vector<int> least_connected_territories;
-	      // find the max # of connections
-	      int min_value=8;
-	      for( int i=0; i<v.size(); i++ )
-		{
-		  if( v[i]->getNumberOfNeighbors() < min_value)
-		    {
-		      min_value = v[i]->getNumberOfNeighbors();
-		    }
-		}
-	      for( int i=0; i<v.size(); i++ )
-		{
-		  if( v[i]->getNumberOfNeighbors() <= min_value)
-		    {
-		      least_connected_territories.push_back(i);
-		    }
-		}
-	      cerr << "\t\tleast_connected_territories.size(): " << least_connected_territories.size() << endl;
+		// create a vector of the least connected territories
+		vector<int> least_connected_territories;
+		// find the max # of connections
+		int min_value=7;
+		for( int i=0; i<v.size(); i++ )
+		  {
+		    if( v[i]->getNumberOfNeighbors() < min_value)
+		      {
+			min_value = v[i]->getNumberOfNeighbors();
+		      }
+		  }
+		for( int i=0; i<v.size(); i++ )
+		  {
+		    if( v[i]->getNumberOfNeighbors() <= min_value)
+		      {
+			least_connected_territories.push_back(i);
+		      }
+		  }
+		//cerr << "\t\tleast_connected_territories.size(): " << least_connected_territories.size() << endl;
 
-	      // pick one at random
-	      int rv2 =  rand() % least_connected_territories.size();
-	      cerr << "\t\trv2: " << rv2 << endl;
+		// pick one at random
+		int rv2 =  rand() % least_connected_territories.size();
+		//cerr << "\t\trv2: " << rv2 << endl;
 
-	      // return its number
-	      return_value = least_connected_territories[rv2];
-	    }
-	}
-      else if( strategy == 2 )
-	{
-	  cerr << "*** TROOP PLACEMENT (strategy 2) ***" << endl;
+		// return its number
+		return_value = least_connected_territories[rv2];
+	      }
+	  }
+	  break;
+	case 2:
+	  
+	  {
+	    cerr << "*** TROOP PLACEMENT (strategy 2) ***" << endl;
 
-	  // this is random for now
-	  // evenly distribute the troops
-	  return_value=rand() % v.size();
-	}
-      else
-	{
-	  cerr << "*** TROOP PLACEMENT (RANDOM strategy) ***" << endl;
+	    // this is random for now
+	    // evenly distribute the troops
+	    return_value=rand() % v.size();
+	  }
+	  break;
+	case 3:
 
-	  // randomly distribute the troops
-	  return_value=rand() % v.size();
+	  {
+	    // put most troops in a well connected territory
+	    int rv = rand() % 100;
+	    cerr << "*** TROOP PLACEMENT (strategy 3) ***" << endl << "\t\trandom value (rv): " << rv << endl;
+	  
+	    if( rv > 50 )
+	      {
+		// create a vector of the most connected territories
+		vector<int> most_connected_territories;
+		// find the max # of connections
+		int max_value=0;
+		for( int i=0; i<v.size(); i++ )
+		  {
+		    if( v[i]->getNumberOfNeighbors() > max_value)
+		      {
+			max_value = v[i]->getNumberOfNeighbors();
+		      }
+		  }
+		// reduce it by 1
+		max_value--;
+
+	      
+		for( int i=0; i<v.size(); i++ )
+		  {
+		    if( v[i]->getNumberOfNeighbors() >= max_value)
+		      {
+			most_connected_territories.push_back(i);
+		      }
+		  }
+		cerr << "\t\tmost_connected_territories.size(): " << most_connected_territories.size() << endl;
+		// pick one at random
+		int rv2 = rand() % most_connected_territories.size();
+		cerr << "\t\trv2: " << rv2 << endl;
+		// return its number
+		return_value = most_connected_territories[rv2];
+	      }
+	    else
+	      {
+
+		// THIS IS CAUSEING A FLOATING POINT EXCEPTION
+	      
+		// create a vector of the least connected territories
+		vector<int> least_connected_territories;
+		// find the max # of connections
+		int min_value=7;
+		for( int i=0; i<v.size(); i++ )
+		  {
+		    if( v[i]->getNumberOfNeighbors() < min_value)
+		      {
+			min_value = v[i]->getNumberOfNeighbors();
+		      }
+		  }
+		for( int i=0; i<v.size(); i++ )
+		  {
+		    if( v[i]->getNumberOfNeighbors() <= min_value)
+		      {
+			least_connected_territories.push_back(i);
+		      }
+		  }
+		//cerr << "\t\tleast_connected_territories.size(): " << least_connected_territories.size() << endl;
+
+		// pick one at random
+		int rv2 =  rand() % least_connected_territories.size();
+		//cerr << "\t\trv2: " << rv2 << endl;
+
+		// return its number
+		return_value = least_connected_territories[rv2];
+	      }
+	  }
+
+
+
+	  break;
+	default:
+	  {
+	    cerr << "*** TROOP PLACEMENT (RANDOM strategy) ***" << endl;
+
+	    // randomly distribute the troops
+	    return_value=rand() % v.size();
+	  }
 	}
     }
   return return_value;
@@ -747,7 +871,7 @@ int Player::AIAttackFrom(vector<Country*> v)
 int Player::moveTroops()
 {
 
-  if( howManyLeft() == 1 ) return -1;
+  if( howManyPlayersLeft() == 1 ) return -1;
   
 #ifdef DEBUG
   int db_input;
@@ -821,13 +945,14 @@ int Player::moveTroops()
 	  cout << "Region " << i << " has [" << moveable_troops << "] moveable troops and [" << non_isolated_countries << "] border countries.\t" << *r[i] << endl;
 #endif
 
-	  while( moveable_troops > 0 && v.size()>1)
+	  while( moveable_troops > 0 && v.size()>1 && v.size()<42)
 	    {
 	      for( int j=0; j<v.size(); j++ )
 		{
 		  if( v[j]->isIsolated() )
 		    {
 		      cout << "don't add troops to isolated country: " << *v[j] << endl;
+		      v.erase(v.begin()+j);
 		    }
 		  else
 		    {
@@ -993,27 +1118,27 @@ void displayMap()
   cout << "\e[0;0H\e[J";
   cout << "                                                                                               ________       ________       ________       ________" << endl;      
   cout << "<-                                                                                            |        |-----|        |-----|        |-----|        |--->" << endl;
-  cout << "  \\                                                                                           |________|     |________| \\   |________| ____|________|    " << endl;
-  cout << "   \\                                                                                     ____/    |     \\____    |     \\ \\__    |     /   /    | " << endl;
-  cout << "    \\________       ________       ________       ________       ________       ________/      ___|____      \\___|____  \\   \\___|____/   /  ___|____      " << endl;
-  cout << "    |        |-----|        |-----|        |-----|        |-----|        |-----|        |-----|        |-----|        |  |  |        |  /  |        | " << endl;
-  cout << "    |________|     |________|     |________|     |________|     |________|     |________|     |________|     |________|  |  |________| /   |________|    " << endl;
+  cout << "  \\                                                                                           |________|     |________| \\   |________| ____|________|" << endl;
+  cout << "   \\                                                                                     ____/    |     \\____    |     \\ \\__    |     /   /    |" << endl;
+  cout << "    \\________       ________       ________       ________       ________       ________/      ___|____      \\___|____  \\   \\___|____/   /  ___|____" << endl;
+  cout << "    /        \\-----|        \\-----|        |-----|        |-----|        |-----|        |-----|        |-----|        |  |  |        |  /  |        \\" << endl;
+  cout << "    \\________/     |________/     |________|     |________|     |________|     |________|     |________|     |________|  |  |________| /   |________/" << endl;
   cout << "        |     ____/    |     ____/    |              |     ____/    |     ____/    |    \\_____    |    \\_____    |    \\\\ \\__    |     / ___/" << endl;
-  cout << "     ___|____/      ___|____/      ___|____       ___|____/      ___|____/      ___|____      \\___|____      \\___|___  \\\\___\\___|____/_/   " << endl;
-  cout << "    |        |-----|        |-----|        |     |        |-----|        |-----|        |-----|        |-----|       | |    |        | " << endl;
-  cout << "    |________|     |________|     |________|     |________|     |________|     |________|     |________|     |_______| |    |________|     " << endl;
-  cout << "        |     ____/    |     ____/                         \\____    |     _____/  |      \\____    |     \\        |     /        " << endl;
+  cout << "     ___|____/      ___|____/      ___|____       ___|____/      ___|____/      ___|____      \\___|____      \\___|___  \\\\___\\___|____/_/" << endl;
+  cout << "    /        |-----|        |-----|        |     |        |-----|        |-----|        |-----|        |-----|       | |    |        |" << endl;
+  cout << "    \\________|     |________|     |________|     |________|     |________|     |________|     |________|     |_______| |    |________|" << endl;
+  cout << "        |     ____/    |     ____/                         \\____    |     _____/  |      \\____    |     \\        |     /" << endl;
   cout << "     ___|____/      ___|____/                                   \\___|____/      __|_____      \\___|____  \\    ___|____/" << endl;    
-  cout << "    |        |-----|        |                                   |        |-----|        |-----|        |  )  |        |"    << endl;
-  cout << "    |________|     |________|                                   |________|     |________|     |________| /   |________|"    << endl;
+  cout << "    /        |-----|        \\                                   /        |-----|        |-----|        \\  )  /        \\"    << endl;
+  cout << "    \\________|     |________/                                   \\________|     |________|     |________/ /   \\________/"    << endl;
   cout << "              \\____    |                                                  _____/   |    \\____     |     /           \\______"  << endl;
   cout << "                   \\___|____       ________       ________      _________/      ___|____     \\____|____/                   \\_________       ________" << endl;
-  cout << "                   |        |-----|        |-----|        |____/               |        |-----|        |                    |        |-----|        | " << endl;
-  cout << "                   |________|     |________|     |________|                    |________|     |________|                    |________|     |________|    " << endl;
-  cout << "                                      |     _____/   |                             |     _____/   |                             |      ____/   |        " << endl;
-  cout << "                                   ___|____/      ___|____                      ___|____/      ___|____                      ___|_____/     ___|____     " << endl; 
-  cout << "                                  |        |-----|        |                    |        |-----|        |                    |         |----|        |    " << endl;
-  cout << "                                  |________|     |________|                    |________|     |________|                    |_________|    |________|    " << endl;
+  cout << "                   /        \\-----/        \\-----|        \\____/               /        |-----|        \\                    /        |-----|        \\" << endl;
+  cout << "                   \\________/     \\________/     |________/                    \\________|     |________/                    \\________|     |________/" << endl;
+  cout << "                                      |     _____/   |                             |     _____/   |                             |      ____/   |" << endl;
+  cout << "                                   ___|____/      ___|____                      ___|____/      ___|____                      ___|_____/     ___|____" << endl; 
+  cout << "                                  /        |-----/        \\                    /        |-----/        \\                    /         |----/        \\" << endl;
+  cout << "                                  \\________|     \\________/                    \\________|     \\________/                    \\_________|    \\________/" << endl;
   for( int i=0; i<countries.size(); i++ )
     {
       countries[i]->map_print();
@@ -1071,7 +1196,7 @@ void deleteAll()
   return;
 }
 
-int howManyLeft()
+int howManyPlayersLeft()
 {
   // if only 1 is left - end the game
   int return_value=0;
@@ -1142,7 +1267,9 @@ int main()
   for( int i=0; i<number_of_players; i++ )
     {      
       players.push_back( new Player( new string( "Player " + to_string(i)), i));
-      players[i]->setStrategy(i);
+      int s = rand()%5;
+      log_file << "*** Setting " << *players[i]->getName() << " strategy to " << s << " ***" << endl;
+      players[i]->setStrategy(s);
     
       int isAI=0;
       while( gotValidInput == false )
@@ -1200,11 +1327,28 @@ int main()
   countries.push_back( new Country( new string("Central America"), CENTRAL_AMERICA, 4, 1, new string("CENTAM")));
   countries.push_back( new Country( new string("Iceland"), ICELAND, 1, 3, new string("ICELND")));
 
+  continents.push_back( new Continent( "North America", 5) );
+  continents[0]->addCountry( countries[ALASKA] );
+  continents[0]->addCountry( countries[NORTHWEST_TERRITORY] );
+  continents[0]->addCountry( countries[ALBERTA] );
+  continents[0]->addCountry( countries[GREENLAND] );
+  continents[0]->addCountry( countries[ONTARIO] );
+  continents[0]->addCountry( countries[QUEBEC] );
+  continents[0]->addCountry( countries[WESTERN_US] );
+  continents[0]->addCountry( countries[EASTERN_US] );
+  continents[0]->addCountry( countries[CENTRAL_AMERICA] );
+  continents[0]->addCountry( countries[ICELAND] );
+  
   countries.push_back( new Country( new string("Venezuela"), VENEZUELA, 4, 2, new string("VENZLA")));
   countries.push_back( new Country( new string("Peru"), PERU, 5, 2, new string(" PERU")));
   countries.push_back( new Country( new string("Argentina"), ARGENTINA, 5, 3, new string("ARGENT")));
   countries.push_back( new Country( new string("Brazil"), BRAZIL, 4, 3, new string("BRAZIL")));
 
+  continents.push_back( new Continent( "South America", 3 ));
+  continents[1]->addCountry( countries[VENEZUELA] );
+  continents[1]->addCountry( countries[PERU] );
+  continents[1]->addCountry( countries[ARGENTINA] );
+  continents[1]->addCountry( countries[BRAZIL] );
 
   countries.push_back( new Country( new string("Great Britain"), GREAT_BRITAIN, 2, 3, new string("BRITAN")));
   countries.push_back( new Country( new string("Scandanavia"), SCANDANAVIA, 1, 4, new string("SCNDVA")));
@@ -1212,6 +1356,14 @@ int main()
   countries.push_back( new Country( new string("W. Europe"), WESTERN_EUROPE, 3, 4, new string( "W. EUR")));
   countries.push_back( new Country( new string("S. Europe"), SOUTHERN_EUROPE, 2, 5, new string( "S. EUR")));
   countries.push_back( new Country( new string("Ukraine"), UKRAINE, 1, 5, new string("UKRANE")));
+  continents.push_back( new Continent( "Europe", 5 ));
+  continents[2]->addCountry( countries[GREAT_BRITAIN] );
+  continents[2]->addCountry( countries[SCANDANAVIA] );
+  continents[2]->addCountry( countries[NORTHERN_EUROPE] );
+  continents[2]->addCountry( countries[WESTERN_EUROPE] );
+  continents[2]->addCountry( countries[SOUTHERN_EUROPE] );
+  continents[2]->addCountry( countries[UKRAINE] );
+  
   
   countries.push_back( new Country( new string("N. Africa"), NORTH_AFRICA, 3, 5, new string("N AFRC")));
   countries.push_back( new Country( new string("E. Africa"), EAST_AFRICA, 4, 6, new string( "E AFRC")));
@@ -1219,11 +1371,27 @@ int main()
   countries.push_back( new Country( new string("Congo"), CONGO, 4, 5, new string("CONGO")));
   countries.push_back( new Country( new string("S. Africa"), SOUTH_AFRICA, 5, 5, new string("S AFRC")));
   countries.push_back( new Country( new string("Madagascar"), MADAGASCAR, 5, 6, new string("MADSGR")));
+
+  continents.push_back( new Continent( "Africa", 3 ));
+  continents[3]->addCountry( countries[NORTH_AFRICA] );
+  continents[3]->addCountry( countries[EAST_AFRICA] );
+  continents[3]->addCountry( countries[EGYPT] );
+  continents[3]->addCountry( countries[CONGO] );
+  continents[3]->addCountry( countries[SOUTH_AFRICA] );
+  continents[3]->addCountry( countries[MADAGASCAR] );
+  
   
   countries.push_back( new Country( new string("New Guinea"), NEW_GUINEA, 4, 9, new string("NGUNEA")));
   countries.push_back( new Country( new string("Indonsia"), INDONESIA, 4, 8, new string("INDONS")));
   countries.push_back( new Country( new string("W Australia"), WESTERN_AUSTRALIA, 5, 8, new string("WAUSTR")));
   countries.push_back( new Country( new string("E Australia"), EASTERN_AUSTRALIA, 5, 9, new string("EAUSTR")));
+
+  continents.push_back( new Continent( "Australia", 2 ));
+  continents[4]->addCountry( countries[NEW_GUINEA] );
+  continents[4]->addCountry( countries[INDONESIA] );
+  continents[4]->addCountry( countries[WESTERN_AUSTRALIA] );
+  continents[4]->addCountry( countries[EASTERN_AUSTRALIA] );
+
 
   countries.push_back( new Country( new string("Kamchatka"), KAMCHATKA, 0, 9, new string("KMCHTK")));
   countries.push_back( new Country( new string("Ural"), URAL, 0, 6, new string(" URAL")));
@@ -1238,6 +1406,19 @@ int main()
   countries.push_back( new Country( new string("China"), CHINA, 1, 7, new string("CHINA")));
   countries.push_back( new Country( new string("Siam"), SIAM, 3, 7, new string(" SIAM")));
 
+  continents.push_back( new Continent( "Asia", 7 ));
+  continents[5]->addCountry( countries[KAMCHATKA] );
+  continents[5]->addCountry( countries[URAL] );
+  continents[5]->addCountry( countries[SIBERIA] );
+  continents[5]->addCountry( countries[YAKUTSK] );
+  continents[5]->addCountry( countries[IRKUTSK] );
+  continents[5]->addCountry( countries[JAPAN] );
+  continents[5]->addCountry( countries[MONGOLIA] );
+  continents[5]->addCountry( countries[AFGHANISTAN] );
+  continents[5]->addCountry( countries[THE_MIDDLE_EAST] );
+  continents[5]->addCountry( countries[INDIA] );
+  continents[5]->addCountry( countries[CHINA] );
+  continents[5]->addCountry( countries[SIAM] );
 
 
 
@@ -1569,14 +1750,18 @@ int main()
 	{
 	  bool still_their_turn = true;
 	  attacks_remaining = players[whosTurn]->getAttackLimit();
-	  
+
+	  if( attacks_remaining == 0 )
+	    {
+	      still_their_turn = false;
+	    }
 	  // if a player is wiped out... end their turn
 	  if( getPlayersCountries(whosTurn).size() == 0 )
 	    {
 	      players[whosTurn]->knockedOut();
 	      still_their_turn = false;
 	    }
-	  if( getPlayersCountriesThatHaveHostileNeighborsWithMoreThanOneTroop(whosTurn).size() == 0 )
+	  if( getPlayersCountriesThatHaveHostileNeighborsWithMoreThanOneTroop(whosTurn).size() == 0  )
 	    {
 	      log_file << *players[whosTurn]->getName() << " has no more possible attacks" << endl;
 	      still_their_turn = false;
@@ -1601,6 +1786,8 @@ int main()
 		    }
 		  else
 		    {
+		      clearHalf();
+		      displayMap();
 
 		      if( players[whosTurn]->getAI() )
 			{
@@ -1609,8 +1796,8 @@ int main()
 			}
 		      else
 			{
-			  clearHalf();
-			  displayMap();
+			  //clearHalf();
+			  //displayMap();
 			  cout << endl << "*** Player: " << *players[whosTurn] << "'s turn ***" << endl;
 			  cout << endl << "*** Choose where your attack will originate from ***" << endl;
 			  cout << "(-1 to end turn)" << endl;
@@ -1838,7 +2025,7 @@ int main()
 				   << record_of_attacker_troops_total
 				   << " troops and won" << endl;
 			}
-		      usleep( 50000);
+		      usleep( 40000);
 		      possible_countries_to_attack.erase(possible_countries_to_attack.begin(),possible_countries_to_attack.begin());
 		      //}
 		    }
@@ -1889,7 +2076,7 @@ int main()
 		      clearHalf();
 		      displayMap();
 		      cout << "* * * * * T R O O P   M O V E M E N T S * * * * *" << endl;
-		      if( players[i]->getAI() && (howManyLeft() > 1))
+		      if( players[i]->getAI() && (howManyPlayersLeft() > 1))
 			{
 			  //players[i]->chooseCountryToMoveTroopsFrom( player_countries );
 			  //cout << "PRE" << endl;
@@ -1973,93 +2160,122 @@ int main()
 	    }
 	
 
-      log_file << "*** entering troop distribution PHASE ***" << endl;
+	  log_file << "*** entering troop distribution PHASE ***" << endl;
 
-      /* DISTRIBUTE TROOPS */
-      // calculate additions
-      troop_placement_phase = true;
-      attack_phase = false;
-      land_grab_phase = false;
-      troop_movement_phase = false;
+	  /* DISTRIBUTE TROOPS */
+	  // calculate additions
+	  troop_placement_phase = true;
+	  attack_phase = false;
+	  land_grab_phase = false;
+	  troop_movement_phase = false;
 
-      int input5;
-      //cout << "*** (1) ***" << endl;
-      //cin >> input5;
+	  int input5;
+	  //cout << "*** (1) ***" << endl;
+	  //cin >> input5;
       
-      for( int i=0; i<players.size(); i++ )
-	{
-	  int additional_troops=0;
-	  if( getNumberOfPlayersCountries(i) == 0 )
+	  for( int i=0; i<players.size(); i++ )
 	    {
-	      log_file << "*** " <<  *players[i]->getName() << " gets no troops because they're out of the game ***" << endl;
-	      additional_troops = 0;
-	    }
-	  else
-	    {
-	      additional_troops = getNumberOfPlayersCountries(i)/3;
-	      //log_file << "*** " << *players[i]->getName() << " gets " << additional_troops << " troops ***" << endl;
-	      if( additional_troops < 3 ) additional_troops = 3;
-	      log_file << "*** " << *players[i]->getName() << " gets " << additional_troops << " troops ***" << endl;
-	    }
-	  
-	  for( int j = 0; j < additional_troops; j++ )
-	    {
-	      vector<Country*> v = getPlayersCountries(i);
-	      gotValidInput = false;
-	      while( !gotValidInput )
+	      int additional_troops=0;
+	      if( getNumberOfPlayersCountries(i) == 0 )
 		{
-		  clearHalf();	
-		  displayMap();
-
-		  int input3;
-		  if( !players[i]->getAI() )
+		  log_file << "*** " <<  *players[i]->getName() << " gets no troops because they're out of the game ***" << endl;
+		  additional_troops = 0;
+		}
+	      else
+		{
+		  additional_troops = getNumberOfPlayersCountries(i)/3;
+		  //log_file << "*** " << *players[i]->getName() << " gets " << additional_troops << " troops ***" << endl;
+		  if( additional_troops < 3 ) additional_troops = 3;
+		  log_file << "*** " << *players[i]->getName() << " gets " << additional_troops << " troops ***" << endl;
+		  int even_more_troops = 0;
+		  for( int j=0; j<continents.size(); j++ )
 		    {
-		      cout << "*** DISTRIBUTE TROOPS ***" << endl;
-		      cout << "*** " << *players[i]->getName() << " has " << (additional_troops-j) << " troops that need to be placed ***" << endl;
-		      log_file << "*** " << *players[i]->getName() << " has " << (additional_troops-j) << " troops that need to be placed ***" << endl;
-		      cout << ">> where would you like to place one?" << endl;
-		      vectorToMenu(v);
-		      input3 = getNumericInput();
-		    }
-		  else
-		    {
-		      if( additional_troops > 0 )
+		      if( continents[j]->ownedBy() == i )
 			{
-			  //cout << "PRE" << endl;
-			  log_file << "*** " << *players[i]->getName() << " has " << (additional_troops-j) << " troops that need";
-			  if( (additional_troops-j) != 1 ) log_file << "s";
-			  log_file << " to be placed ***" << endl;
-			  input3 = players[i]->chooseInitialPlacement(v);
-			  //cout << "POST" << endl;
-			  log_file << "\t\tinput3: " << input3 << "\t\tv.size(): " << (int)v.size() << endl;
+			  even_more_troops = continents[j]->getBonus();
+			  additional_troops += even_more_troops;
+			  log_file << "*** " << *players[i]->getName() << " gets a BONUS " << even_more_troops << " troops for controlling all of " << *continents[j] << " ***" << endl;
+			  cout << "*** " << *players[i]->getName() << " gets a BONUS " << even_more_troops << " troops for controlling all of " << *continents[j] << " ***" << endl;
 			}
 		    }
+		  
+		}
+	  
+	      for( int j = 0; j < additional_troops; j++ )
+		{
+		  vector<Country*> v = getPlayersCountries(i);
+		  gotValidInput = false;
+		  while( !gotValidInput )
+		    {
+		      clearHalf();	
+		      displayMap();
 
-		  if( input3 >= 0 && input3 < (int)v.size() )
-		    {
+		      int input3;
+		      if( !players[i]->getAI() )
+			{
+			  cout << "*** DISTRIBUTE TROOPS ***" << endl;
+			  cout << "*** " << *players[i]->getName() << " has " << (additional_troops-j) << " troop";
+			  if( (additional_troops-j) != 1 ) log_file << "s";
+			  log_file << " that need";
+			  if( (additional_troops-j) == 1 ) log_file << "s";		      
+			  log_file << " to be placed ***" << endl;
+			  log_file << "*** " << *players[i]->getName() << " has " << (additional_troops-j) << " troops that need to be placed ***" << endl;
+			  cout << ">> where would you like to place one?" << endl;
+			  vectorToMenu(v);
+			  input3 = getNumericInput();
+			}
+		      else
+			{
+			  if( additional_troops > 0 )
+			    {
+			      //cout << "PRE" << endl;
+			      log_file << "*** " << *players[i]->getName() << " has " << (additional_troops-j) << " troop";
+			      if( (additional_troops-j) != 1 ) log_file << "s";
+			      log_file << " that need";
+			      if( (additional_troops-j) == 1 ) log_file << "s";
+			      log_file << " to be placed ***" << endl;
+			      input3 = players[i]->chooseInitialPlacement(v);
+			      //cout << "POST" << endl;
+			      //log_file << "\t\tinput3: " << input3 << "\t\tv.size(): " << (int)v.size() << endl;
+			    }
+			}
+
+		      if( input3 >= 0 && input3 < (int)v.size() )
+			{
 		      
-		      v[input3]->addTroops(1);
-		      log_file << "    placing a troop on " << v[input3]->getName() << endl;
-		      gotValidInput = true;
-		    }
-		  else if( input3 == -1 )
-		    {
-		      gotValidInput = true;
-		    }
-		  else
-		    {
-		      cout << "*** invalid input ***" << endl;
+			  v[input3]->addTroops(1);
+			  log_file << "    placing a troop on " << v[input3]->getName() << endl;
+			  gotValidInput = true;
+			}
+		      else if( input3 == -1 )
+			{
+			  gotValidInput = true;
+			}
+		      else
+			{
+			  cout << "*** invalid input ***" << endl;
+			}
 		    }
 		}
 	    }
 	}
-	}
-
+      displayMap();
       /* ------------ distribute troops ----------- */
     }
  
 
   displayMap();
+  
+  // find out who won
+  for( int i=0; i<players.size(); i++ )
+    {
+      if( players[i]->stillInTheGame() )
+	{
+	  cout << "*** " << *players[i] << " WINS with strategy #" << players[i]->getStrategy() << " in " << turn_count-1 << " turns ***" << endl;
+	  log_file << "*** " << *players[i]->getName() << " WINS!!! ***" << endl;
+	}
+    }
+  
   deleteAll();
   log_file.close();
   return 0;
