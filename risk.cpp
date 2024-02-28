@@ -279,14 +279,22 @@ public:
     cout << "\e[1;" << to_string(player+33)<< "m";    
     cout << "\e[" << x*4+2 << ";" << y*15+7 << "H" << *short_name << "\e[" << x*4+3 << ";" << y*15+9 << "H" << number_of_troops;
     cout << "\e[38;5;40m";
-
   }
+
+  void setStrategicValue( int i ){ strategic_value = i; };
+  int getStrategicValue(){ return strategic_value; };
   
-  vector <Country*> getFriendlyNeighbors();
-  vector <Country*> getHostileNeighbors();
-  vector <Country*> getAllNeighbors();
+  vector<Country*> getFriendlyNeighbors();
+  vector<Country*> getHostileNeighbors();
+  vector<Country*> getHostileNeighborsThatICanTake();
+
+  vector<Country*> getAllNeighbors();
 
   friend bool operator==(const Country& lhs, const Country& rhs) { return(lhs.id == rhs.id); }
+  void addAttackedCountry( Country * c );
+
+  void clearAttackedCountries();
+  bool alreadyAttacked(Country * c);
 private:
   bool already_moved_from;
   vector<Country*> bordering_country;
@@ -298,7 +306,37 @@ private:
   int x;
   int y;
   string * short_name;
+
+  int strategic_value;
+
+  vector<Country*> already_attacked;
 };
+
+void Country::addAttackedCountry( Country * c )
+{
+  cout << "adding " << *c << " to " << *this << " as already attacked" << endl;
+  already_attacked.push_back(c);
+  //int tmp;
+  //cin >> tmp;
+};
+
+void Country::clearAttackedCountries()
+{
+  already_attacked.erase(already_attacked.begin(), already_attacked.end());
+  return;
+}
+
+bool Country::alreadyAttacked(Country * c)
+{
+  for( int i=0; i<already_attacked.size(); i++ )
+    {
+      cout << *c << " vs. " << *already_attacked[i] << endl;
+      //int tmp;
+      //cin >> tmp;
+      if( c == already_attacked[i] ) return true;
+    }
+  return false;
+}
 
 Country::~Country()
 {
@@ -364,6 +402,20 @@ vector<Country*> Country::getHostileNeighbors()
   return return_vector;
 }
 
+vector<Country*> Country::getHostileNeighborsThatICanTake()
+{
+  vector <Country*> return_vector;
+  for( int i=0; i<bordering_country.size(); i++ )
+    {
+      if( (bordering_country[i]->getPlayer() != this->getPlayer()) && (bordering_country[i]->getNumber() <= this->getNumber()) )
+	{
+	  return_vector.push_back( bordering_country[i] );
+	}
+    }
+  return return_vector;
+}
+
+
 ostream& operator <<(ostream& out, const Country& c)
 {
   out << "\e[1;" << to_string(c.player+33)<< "m";
@@ -388,7 +440,7 @@ public:
   void addCountry( Country * c );
   void setBonus( int i ){ bonus = i;};
   int getBonus(){ return bonus; };
-  
+  double percent( int i );
   int ownedBy();
 
   friend ostream& operator <<(ostream& out, const Continent& c);
@@ -405,6 +457,20 @@ ostream& operator <<(ostream& out, const Continent& c)
   out << c.name;
   return out;
 };
+
+double Continent::percent( int i )
+{
+  double return_value=0.00;
+
+  double count = 0.00;
+  // count all of the countries that have "i" as their player
+  for( int j = 0; j<my_countries.size(); j++ )
+    {
+      if( my_countries[j]->getPlayer() == i ) count+=1.00;
+    }  
+  return_value = 100.00 * count/my_countries.size();
+  return return_value;
+}
 
 
 int Continent::ownedBy()
@@ -714,16 +780,26 @@ int Player::chooseInitialPlacement(vector<Country*> v)
 class ValidMove
 {
 public:
-  ValidMove(Country * s, Country * d)
+  ValidMove(Country * s, Country * d);
+  ~ValidMove();
+
+  bool same( string s, string d );
+private:
+  Country * source;
+  Country * destination;
+};
+
+ValidMove::ValidMove(Country * s, Country * d)
   {
-#ifdef DEBUG
-    cout << "creating ValidMove " << s->getName() << " and " << d->getName() << " (enter #)" << endl;
-    getNumericInput();
-#endif
     source = s; destination = d;
   };
-  ~ValidMove();
-  bool same( string s, string d )
+
+ValidMove::~ValidMove()
+{
+  
+};
+
+bool ValidMove::same( string s, string d )
   {
 #ifdef DEBUG
     cout << "s: " << s << endl
@@ -736,21 +812,15 @@ public:
     bool return_value = false;
     if( (s == source->getName() && d == destination->getName()) || ( s == destination->getName() && d == source->getName() ))
       {
-#ifdef DEBUG
-	cout << "match found (enter #)" << endl;
-	getNumericInput();
-#endif
 	return_value = true;
       }
     return return_value;
   };
   
-private:
-  Country * source;
-  Country * destination;
-};
 
 vector<ValidMove*> validMoves;
+
+
 
 class Region
 {
@@ -781,7 +851,6 @@ ostream& operator <<(ostream& out, const Region& region)
     out << region.r[i]->getName() << " ";
   return out;
 };
-
 
 Region::Region(Country* c)
 {
@@ -1117,28 +1186,28 @@ void displayMap()
 {
   cout << "\e[0;0H\e[J";
   cout << "                                                                                               ________       ________       ________       ________" << endl;      
-  cout << "<-                                                                                            |        |-----|        |-----|        |-----|        |--->" << endl;
-  cout << "  \\                                                                                           |________|     |________| \\   |________| ____|________|" << endl;
+  cout << "<-                                                                                            /        \\-----/        \\-----/        \\-----/        \\--->" << endl;
+  cout << "  \\                                                                                           \\________/     \\________/ \\   \\________/ ____\\________/" << endl;
   cout << "   \\                                                                                     ____/    |     \\____    |     \\ \\__    |     /   /    |" << endl;
   cout << "    \\________       ________       ________       ________       ________       ________/      ___|____      \\___|____  \\   \\___|____/   /  ___|____" << endl;
-  cout << "    /        \\-----|        \\-----|        |-----|        |-----|        |-----|        |-----|        |-----|        |  |  |        |  /  |        \\" << endl;
-  cout << "    \\________/     |________/     |________|     |________|     |________|     |________|     |________|     |________|  |  |________| /   |________/" << endl;
+  cout << "    /        \\-----/        \\-----/        \\-----/        \\-----/        \\-----/        \\-----/        \\-----/        \\  |  /        \\  /  /        \\" << endl;
+  cout << "    \\________/     \\________/     \\________/     \\________/     \\________/     \\________/     \\________/     \\________/  |  \\________/ /   \\________/" << endl;
   cout << "        |     ____/    |     ____/    |              |     ____/    |     ____/    |    \\_____    |    \\_____    |    \\\\ \\__    |     / ___/" << endl;
   cout << "     ___|____/      ___|____/      ___|____       ___|____/      ___|____/      ___|____      \\___|____      \\___|___  \\\\___\\___|____/_/" << endl;
-  cout << "    /        |-----|        |-----|        |     |        |-----|        |-----|        |-----|        |-----|       | |    |        |" << endl;
-  cout << "    \\________|     |________|     |________|     |________|     |________|     |________|     |________|     |_______| |    |________|" << endl;
+  cout << "    /        \\-----/        \\-----/        \\     /        \\-----/        \\-----/        \\-----/        \\-----/       \\ |    /        \\" << endl;
+  cout << "    \\________/     \\________/     \\________/     \\________/     \\________/     \\________/     \\________/     \\_______/ |    \\________/" << endl;
   cout << "        |     ____/    |     ____/                         \\____    |     _____/  |      \\____    |     \\        |     /" << endl;
   cout << "     ___|____/      ___|____/                                   \\___|____/      __|_____      \\___|____  \\    ___|____/" << endl;    
-  cout << "    /        |-----|        \\                                   /        |-----|        |-----|        \\  )  /        \\"    << endl;
-  cout << "    \\________|     |________/                                   \\________|     |________|     |________/ /   \\________/"    << endl;
+  cout << "    /        \\-----/        \\                                   /        \\-----/        \\-----/        \\  )  /        \\"    << endl;
+  cout << "    \\________/     \\________/                                   \\________/     \\________/     \\________/ /   \\________/"    << endl;
   cout << "              \\____    |                                                  _____/   |    \\____     |     /           \\______"  << endl;
   cout << "                   \\___|____       ________       ________      _________/      ___|____     \\____|____/                   \\_________       ________" << endl;
-  cout << "                   /        \\-----/        \\-----|        \\____/               /        |-----|        \\                    /        |-----|        \\" << endl;
-  cout << "                   \\________/     \\________/     |________/                    \\________|     |________/                    \\________|     |________/" << endl;
+  cout << "                   /        \\-----/        \\-----/        \\____/               /        \\-----/        \\                    /        \\-----/        \\" << endl;
+  cout << "                   \\________/     \\________/     \\________/                    \\________/     \\________/                    \\________/     \\________/" << endl;
   cout << "                                      |     _____/   |                             |     _____/   |                             |      ____/   |" << endl;
   cout << "                                   ___|____/      ___|____                      ___|____/      ___|____                      ___|_____/     ___|____" << endl; 
-  cout << "                                  /        |-----/        \\                    /        |-----/        \\                    /         |----/        \\" << endl;
-  cout << "                                  \\________|     \\________/                    \\________|     \\________/                    \\_________|    \\________/" << endl;
+  cout << "                                  /        \\-----/        \\                    /        \\-----/        \\                    /         \\----/        \\" << endl;
+  cout << "                                  \\________/     \\________/                    \\________/     \\________/                    \\_________/    \\________/" << endl;
   for( int i=0; i<countries.size(); i++ )
     {
       countries[i]->map_print();
@@ -1219,6 +1288,16 @@ int getNumericInput()
   return ( atoi( tmp_string.c_str() ) );
 }
 
+int whodWin( Country * c1, Country * c2 )
+{
+  // 1: c1 would win
+  // 2: c2 would win
+  // 0: toss-up
+  if( c1->getNumber() > c2->getNumber() ) return 1;
+  if( c2->getNumber() > c1->getNumber() ) return 2;
+  return 0;
+}
+
 int main()
 {
   ofstream log_file;
@@ -1250,7 +1329,7 @@ int main()
       cout << "*** enter number of players: " << endl;      
       number_of_players = getNumericInput();
       
-      if( number_of_players <2 || number_of_players > 6 )
+      if( number_of_players <2 || number_of_players > 8 )
 	{
 	  cerr << "enter a number from 2 to 6 please." << endl;
 	}
@@ -1344,7 +1423,7 @@ int main()
   countries.push_back( new Country( new string("Argentina"), ARGENTINA, 5, 3, new string("ARGENT")));
   countries.push_back( new Country( new string("Brazil"), BRAZIL, 4, 3, new string("BRAZIL")));
 
-  continents.push_back( new Continent( "South America", 3 ));
+  continents.push_back( new Continent( "South America", 2 ));
   continents[1]->addCountry( countries[VENEZUELA] );
   continents[1]->addCountry( countries[PERU] );
   continents[1]->addCountry( countries[ARGENTINA] );
@@ -1704,7 +1783,7 @@ int main()
 	    {
 	      displayPlayersCountries(-1);
 	    }
-	  cout << endl << ">> where would you like to place a troop?" << endl;
+	  cout << endl << "Where would you like to place a troop?" << endl;
 	  gotValidInput = false;
 	  while( !gotValidInput )
 	    {
@@ -1832,7 +1911,17 @@ int main()
 		    {
 		      if( players[whosTurn]->getAI() )
 			{
-			  y = players[whosTurn]->AIAttackTo(list_of_hostile_neighbors);
+			  // only ones that make sense to attack (weaker or equal strength)
+			  list_of_hostile_neighbors = c->getHostileNeighborsThatICanTake();
+			  log_file << list_of_hostile_neighbors.size() << endl;
+			  if( list_of_hostile_neighbors.size() == 0 )
+			    {
+			      y = -1;
+			    }
+			  else
+			    {
+			      y = players[whosTurn]->AIAttackTo(list_of_hostile_neighbors);
+			    }
 			  gotValidInput = true;
 			}
 		      else
@@ -1872,8 +1961,6 @@ int main()
 		    {
 		      if( players[whosTurn]->getAI() )
 			{
-			  //log_file << *players[whosTurn]->getName() << " attacked " << d->getName() << " from " << c->getName() << endl;
-			  //cout << *players[whosTurn] << " attacked " << d->getName() << " from " << c->getName() << endl;
 			  attacker_troops_total = players[whosTurn]->AIAttackHowMany(c->getNumber()-1);
 			  record_of_attacker_troops_total = attacker_troops_total;
 			  gotValidInput = true;
@@ -1883,9 +1970,6 @@ int main()
 
 			  clearHalf();
 			  displayMap();
-		      
-			  //log_file << *players[whosTurn]->getName() << " attacked " << d->getName() << " from " << c->getName() << endl;
-			  //cout << *players[whosTurn] << " attacked " << d->getName() << " from " << c->getName() << endl;
 
 			  // the attack will now take place
 			  cout << "how many troops do you want to use?  (max: " << c->getNumber()-1 << ")" <<endl;
@@ -1902,85 +1986,74 @@ int main()
 			}
 		    }
 
-		  //cerr << "ATTACKING WITH " << attacker_troops_total << " troops" << endl;
-		  //cerr << "DEFENDING WITH " << defender_troops_total << " troops" << endl;
-
-		  //int pause;
-		  //cin >> pause;
-		  // remove the number of attacking troops from the originating country
-		  c->setNumber( c->getNumber() - attacker_troops_total );
-		  displayMap();
-		      
-		  bool no_one_has_won_yet = true;
-		  while( no_one_has_won_yet )
+		  //if( c->alreadyAttacked(d) == false )
+		  //  {
+		  //    if( whodWin(c,d) == 2 )
+		  //	{
+		  //	  c->addAttackedCountry( d );
+		  //	}
+		  //}
+		  
+		  if( !c->alreadyAttacked(d) )
 		    {
-			  
-		      while( attacker_troops_total > 0 && defender_troops_total > 0 )
+		      c->addAttackedCountry( d );
+		      c->setNumber( c->getNumber() - attacker_troops_total );
+		      displayMap();
+		      
+		      bool no_one_has_won_yet = true;
+		      while( no_one_has_won_yet )
 			{
+			  
+			  while( attacker_troops_total > 0 && defender_troops_total > 0 )
+			    {
 
-			  /* ATTACK ATTACK ATTACK ATTACK ATTACK ATTACK ATTACK ATTACK */
-			  if( attacker_troops_total >= 3 )
-			    {
-			      // attacker rolls thrice
-			      attacker_dice.push_back( die() );
-			      attacker_dice.push_back( die() );
-			      attacker_dice.push_back( die() );
-			    }
-			  else if( attacker_troops_total == 2 )
-			    {
-			      attacker_dice.push_back( die() );
-			      attacker_dice.push_back( die() );
-			    }
-			  else
-			    {
-			      attacker_dice.push_back( die() );
-			    }
-			  sort(attacker_dice.begin(), attacker_dice.end(), greater<int>());
+			      /* ATTACK ATTACK ATTACK ATTACK ATTACK ATTACK ATTACK ATTACK */
+			      if( attacker_troops_total >= 3 )
+				{
+				  // attacker rolls thrice
+				  attacker_dice.push_back( die() );
+				  attacker_dice.push_back( die() );
+				  attacker_dice.push_back( die() );
+				}
+			      else if( attacker_troops_total == 2 )
+				{
+				  attacker_dice.push_back( die() );
+				  attacker_dice.push_back( die() );
+				}
+			      else
+				{
+				  attacker_dice.push_back( die() );
+				}
+			      sort(attacker_dice.begin(), attacker_dice.end(), greater<int>());
 
-			  if( defender_troops_total >= 2 )
-			    {
-			      defender_dice.push_back( die() );
-			      defender_dice.push_back( die() );
-			    }
-			  else
-			    {
-			      defender_dice.push_back( die() );
-			    }
-			  sort(defender_dice.begin(), defender_dice.end(), greater<int>());
+			      if( defender_troops_total >= 2 )
+				{
+				  defender_dice.push_back( die() );
+				  defender_dice.push_back( die() );
+				}
+			      else
+				{
+				  defender_dice.push_back( die() );
+				}
+			      sort(defender_dice.begin(), defender_dice.end(), greater<int>());
 
-			  //#ifdef DEBUG			    
-			  // output both sets of dice rolls
-			  log_file << "*** attacker rolled: ";
-			  for( int k = 0; k< attacker_dice.size(); k++ )
-			    {
-			      log_file << attacker_dice[k] << " ";
-			    }
-			  log_file << " ***" << endl;
-			      
-			  log_file << "*** defender rolled: ";
-			  for( int k = 0; k< defender_dice.size(); k++ )
-			    {
-			      log_file << defender_dice[k] << " ";
-			    }
-			  log_file << " ***" << endl;
-			  //int pause=0;
-			  //cin >> pause;
-			  //usleep( 10000 );
-			  //#endif
 
-			  /*   compare the dice   */
-			  if( attacker_dice[0] > defender_dice[0] )
-			    {
-			      defender_troops_total--;
-			    }
-			  else
-			    {
-			      attacker_troops_total--;
-			    }
-			      
-			  if( attacker_dice.size() > 1 && defender_dice.size() > 1 )
-			    {
-			      if( attacker_dice[1] > defender_dice[1] )
+#ifdef DEBUG			     
+			      log_file << "*** attacker rolled: ";
+			      for( vector<int>::iterator k=attacker_dice.begin(); k<attacker_dice.end(); k++ )
+				{
+				  log_file << attacker_dice[distance(attacker_dice.begin(),k)] << " ";
+				}			      
+			      log_file << " ***" << endl << "*** defender rolled: ";
+			      for( vector<int>::iterator k=defender_dice.begin(); k<defender_dice.end(); k++ )
+				{
+				  log_file << defender_dice[distance(defender_dice.begin(),k)] << " ";
+				}
+			      log_file << " ***" << endl;
+#endif
+
+			      /*   compare the dice   */
+			      if( attacker_dice[0] > defender_dice[0] )
 				{
 				  defender_troops_total--;
 				}
@@ -1988,47 +2061,60 @@ int main()
 				{
 				  attacker_troops_total--;
 				}
+			      
+			      if( attacker_dice.size() > 1 && defender_dice.size() > 1 )
+				{
+				  if( attacker_dice[1] > defender_dice[1] )
+				    {
+				      defender_troops_total--;
+				    }
+				  else
+				    {
+				      attacker_troops_total--;
+				    }
 				  
+				}
+
+			      attacker_dice.erase(attacker_dice.begin(), attacker_dice.end());
+			      defender_dice.erase(defender_dice.begin(), defender_dice.end());
+
 			    }
 
-			  attacker_dice.erase(attacker_dice.begin(), attacker_dice.end());
-			  defender_dice.erase(defender_dice.begin(), defender_dice.end());
-
+			  if( attacker_troops_total == 0 )
+			    {
+			      no_one_has_won_yet = false;
+			      d->setNumber( defender_troops_total );
+			      cout << "*** TURN: " << turn_count << " " << *d << " staved off the attack from " << *c << " ***" << endl;
+			      log_file << *players[whosTurn]->getName()
+				       << " attacked "
+				       << d->getName()
+				       << " from "
+				       << c->getName()
+				       << " with "
+				       << record_of_attacker_troops_total
+				       << " troops and lost" << endl;
+			    }
+			  if( defender_troops_total == 0 )
+			    {
+			      no_one_has_won_yet = false;
+			      d->setPlayer( whosTurn );
+			      d->setNumber( attacker_troops_total );
+			      cout << "*** TURN: " << turn_count << " " << *c << " wins and now owns " << *d << " ***" << endl;
+			      log_file << *players[whosTurn]->getName()
+				       << " attacked "
+				       << d->getName()
+				       << " from "
+				       << c->getName()
+				       << " with "
+				       << record_of_attacker_troops_total
+				       << " troops and won" << endl;
+			    }
+			  usleep(50000);
+			  possible_countries_to_attack.erase(possible_countries_to_attack.begin(),possible_countries_to_attack.begin());
+			  //}
 			}
-
-		      if( attacker_troops_total == 0 )
-			{
-			  no_one_has_won_yet = false;
-			  d->setNumber( defender_troops_total );
-			  cout << "*** " << *d << " staved off the attack from " << *c << " ***" << endl;
-			  log_file << *players[whosTurn]->getName()
-				   << " attacked "
-				   << d->getName()
-				   << " from "
-				   << c->getName()
-				   << " with "
-				   << record_of_attacker_troops_total
-				   << " troops and lost" << endl;
-			}
-		      if( defender_troops_total == 0 )
-			{
-			  no_one_has_won_yet = false;
-			  d->setPlayer( whosTurn );
-			  d->setNumber( attacker_troops_total );
-			  cout << "*** " << *c << " wins and now owns " << *d << " ***" << endl;
-			  log_file << *players[whosTurn]->getName()
-				   << " attacked "
-				   << d->getName()
-				   << " from "
-				   << c->getName()
-				   << " with "
-				   << record_of_attacker_troops_total
-				   << " troops and won" << endl;
-			}
-		      usleep( 40000);
-		      possible_countries_to_attack.erase(possible_countries_to_attack.begin(),possible_countries_to_attack.begin());
-		      //}
 		    }
+		  c->clearAttackedCountries();
 		}
 	    }
 	}
@@ -2048,6 +2134,7 @@ int main()
       // TROOP MOVEMENTS
       log_file << "*** entering troop movement PHASE ***" << endl;
 #ifdef DEBUG
+      cout << "enter any number" << endl;
       getNumericInput();
 #endif
       
@@ -2138,15 +2225,15 @@ int main()
 		      if( input2 != -1 && gotValidInput )
 			{
 			  bool match_found = false;
-			  for( int i=0; i<validMoves.size(); i++ )
+			  for( int j=0; j<validMoves.size(); j++ )
 			    {
-			      if( validMoves[i]->same( friendlies[input2]->getName(), starting_from->getName() ) )
+			      if( validMoves[j]->same( friendlies[input2]->getName(), starting_from->getName() ) )
 				{
 				  match_found = true;
 				}
 			    }
 
-			  if( !match_found )
+			  if( !match_found || !players[i]->getAI() )
 			    {
 			      cout << "Moving from " << *starting_from << " to " << *friendlies[input2] << endl;
 			      friendlies[input2]->addTroops(1);
