@@ -1,0 +1,926 @@
+needs( "mul16" );
+needs( "div16" );
+int main()
+{
+
+  data ts5 = { "PRESS ANY KEY TO BEGIN" };
+
+  data characterset = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // space
+    0x00, 0x30, 0x30, 0x30, 0x30, 0x00, 0x30, 0x30, // !
+    0x00, 0xCC, 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, // "
+    0x00, 0x3C, 0x30, 0x30, 0xFC, 0x30, 0x33, 0xFF, // Lb
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $
+    0x00, 0x30, 0xF0, 0xF0, 0x30, 0x3C, 0x3C, 0x30, // %
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // &
+    0x0C, 0x0C, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, // '
+    0x0C, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x0C, // (
+    0xC0, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0xC0, // )
+
+    0xFF, 0xFF, 0xC0, 0xC0, 0xD5, 0xD5, 0xEA, 0xEA, // *
+    0xFF, 0xFF, 0x00, 0x00, 0x55, 0x55, 0xAA, 0xAA, // +
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0xC0, // ,
+    0x00, 0x00, 0x00, 0x3C, 0x3C, 0x00, 0x00, 0x00, // -
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0xC0, // .
+    0x03, 0x03, 0x0C, 0x0C, 0x30, 0x30, 0xC0, 0xC0, // /
+    0x00, 0x30, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0x30, // 0
+    0x00, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, // 1
+    0x00, 0x30, 0xCC, 0x0C, 0x30, 0xC0, 0xC0, 0xFC, // 2
+    0x00, 0x30, 0xCC, 0x0C, 0x30, 0x0C, 0xCC, 0x30, // 3
+
+    0x00, 0x0C, 0xCC, 0xCC, 0xFC, 0x0C, 0x0C, 0x0C, // 4
+    0x00, 0xFC, 0xC0, 0xF0, 0x0C, 0x0C, 0xCC, 0x30, // 5
+    0x00, 0x30, 0xCC, 0xC0, 0xF0, 0xCC, 0xCC, 0x30, // 6
+    0x00, 0xFC, 0x0C, 0x0C, 0x30, 0x30, 0x30, 0x30, // 7
+    0x00, 0x30, 0xCC, 0xCC, 0x30, 0xCC, 0xCC, 0x30, // 8
+    0x00, 0xFC, 0xCC, 0xCC, 0xFC, 0x0C, 0x0C, 0x0C, // 9
+    0x00, 0x00, 0x30, 0x30, 0x00, 0x30, 0x30, 0x00, // :
+    0x00, 0x00, 0x30, 0x30, 0x00, 0x30, 0xC0, 0x00, // ;
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // <
+    0x00, 0x00, 0x3C, 0x00, 0x3C, 0x00, 0x00, 0x00, // =
+
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // >
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // ?
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // @
+    0x00, 0x30, 0xFC, 0xCC, 0xFC, 0xCC, 0xCC, 0xCC,  //  A
+    0x00, 0xF0, 0xCC, 0xCC, 0xF0, 0xCC, 0xCC, 0xF0, // B
+    0x00, 0x30, 0xCC, 0xC0, 0xC0, 0xC0, 0xCC, 0x30, // C
+    0x00, 0xF0, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xF0, // D
+    0x00, 0xFC, 0xC0, 0xC0, 0xF0, 0xC0, 0xC0, 0xFC, // E
+    0x00, 0xFC, 0xC0, 0xC0, 0xF0, 0xC0, 0xC0, 0xC0, // F
+    0x00, 0x30, 0xCC, 0xC0, 0xFC, 0xCC, 0xCC, 0x30, // G
+
+    0x00, 0xCC, 0xCC, 0xCC, 0xFC, 0xCC, 0xCC, 0xCC, // H
+    0x00, 0xFC, 0x30, 0x30, 0x30, 0x30, 0x30, 0xFC, // I
+    0x00, 0xFC, 0x0C, 0x0C, 0x0C, 0xCC, 0xCC, 0x30,  // J
+    0x00, 0xCC, 0xCC, 0xCC, 0xF0, 0xCC, 0xCC, 0xCC, // K
+    0x00, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xFC,  // L
+    0x00, 0xCC, 0xFC, 0xFC, 0xCC, 0xCC, 0xCC, 0xCC,  // M
+    0x00, 0x00, 0x00, 0xC0, 0xFC, 0xCC, 0xCC, 0xCC, // N
+    0x00, 0xFC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xFC,  // O
+    0x00, 0xF0, 0xCC, 0xCC, 0xF0, 0xC0, 0xC0, 0xC0, // P
+    0x00, 0x30, 0xCC, 0xCC, 0xCC, 0xCC, 0xF0, 0x3C, // Q
+
+    0x00, 0xF0, 0xCC, 0xCC, 0xF0, 0xCC, 0xCC, 0xCC, // R
+    0x00, 0x30, 0xCC, 0xC0, 0x30, 0x0C, 0xCC, 0x30, // S
+    0x00, 0xFC, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, // T
+    0x00, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xFC, // U
+    0x00, 0xCC, 0xCC, 0xCC, 0xCC, 0x30, 0x30, 0x30, // V
+    0x00, 0xCC, 0xCC, 0xCC, 0xFC, 0xFC, 0xFC, 0xCC, // W
+    0x00, 0xCC, 0xCC, 0xCC, 0x30, 0xCC, 0xCC, 0xCC, // X
+    0x00, 0xCC, 0xCC, 0xCC, 0x3C, 0x0C, 0xCC, 0x30, // Y
+    0x00, 0xFC, 0x0C, 0x0C, 0x30, 0xC0, 0xC0, 0xFC, // Z
+    //0x0F, 0x35, 0xD5, 0xD5, 0xEA, 0xEA, 0x3A, 0x0F, // [
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x0F, // ladder0
+
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Lb
+    //0xF0, 0x5C, 0x57, 0x57, 0xAB, 0xAB, 0xAC, 0xF0, // ]
+    0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xFF, 0xFF, // ladder 1
+    //0x00, 0x3C, 0xC3, 0x00, 0x00, 0x00, 0x00, 0x00, // ^
+    0x03, 0x00, 0x03, 0x03, 0x03, 0x03, 0xFF, 0xFF, // ladder2
+    //0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // <-- (~)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0xF0,  // ladder3
+    0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00 // -
+  };
+  
+ 
+  saveregs();
+  bank( 2 );
+  setScreenMode(3);
+
+  poke( 0xD018, 0x18 );
+  
+  romout(6);
+  screenReset();
+  bmPrintInit( 0xA0, 0x84, characterset );
+  
+  
+  uint general8bit = 0x00;
+  uint playerSFXFlag;
+  uint z = NULL;
+  int status = NULL;
+  word num = NULL;
+  word xpos = NULL;
+  uint ypos = NULL;
+  uint level = NULL;
+  uint LZ = NULL;
+  uint peakarray[9];
+  uint j = NULL;
+
+  word scoreclock = NULL;
+  
+  data PAKtext = {"PRESS ANY KEY"};
+  //                 0123456789012345678901234567890123456789
+  data gopaText0 = {"GAME OVER" };
+  data gopaText1 = {"PRESS 'Q' TO QUIT" }; // 40 - 17 = 23 / 2 = 11
+  data gopaText2 = {"ANY OTHER KEY TO PLAY AGAIN" }; // 40 - 27 = 13 / 2 = 6
+
+  data pauseText0 = {"PRESS ANY KEY TO CONTINUE" }; // 40 - 27 = 13 / 2 = 6
+
+  data zero = {"0"};
+
+  data row0Text = { "LEVEL:         CLOCK:         X-SPEED:" };
+  data row1Text = { "FUEL:                         Y-SPEED:" };
+  data emptyText = {"EMPTY"};
+  data crashedText = {"YOU CRASHED"};
+  data landedText = {"YOU SAFELY LANDED"};
+  data tooFastText = {"YOU CAME IN TOO FAST!"};
+  data spaceText = {" "};
+
+  resetGame();
+  initSprites();
+  drawTitleSceen();
+
+  //prints( PAKtext );
+  asmcomment( "must be done prior to sound initialisation" );
+  asmcomment("seed the RNG by repeatedly calling rnd until player presses a key" );
+  general8bit = 0x00;
+  seed();
+  while( general8bit == 0 )
+    {
+      z=rnd(1);
+      bmPrint( 0x09, 0x16, ts5, z, 0x22 );
+      general8bit = getchar();
+    }
+  spriteset(0x00);
+  mySeed();
+  general8bit = myRand();
+
+  
+  // setup sound
+  asmcomment( "sound settings" );
+  // sid volume
+  poke( 0xD418, 0x08 );
+  // Freq
+  poke( 0xD407, 0x80 );
+  poke( 0xD408, 0x04 );
+  // AD
+  poke( 0xD40C, 0x42 );
+  // SR
+  poke( 0xD40D, 0xE1 );
+  irq( ptr(irqfunc1), 0x00, 1 );
+  
+  word FUEL = NULL;
+  int xvel = 0x00;
+  int yvel = 0x00;
+
+  uint gravbyte = 0xFF;
+  word timer = 0x0000;
+
+  uint rtn8bit = NULL;
+  uint byte0 = NULL;
+  uint byte1 = NULL;
+  uint byte2 = NULL;
+
+  uint plotDigitBindex=NULL;
+  uint plotDigitX = NULL;
+  uint plotDigitY = 20;
+  uint plotDigitColourValue11 = 0x0E;
+  uint plotDigitColourValue1001 = 0x0E;
+
+    
+  data digits = {
+    0, 52, 221, 221, 221, 221, 221, 52,
+    0, 52, 52, 52, 52, 52, 52, 52,
+    0, 52, 221, 13, 52, 208, 208, 253,
+    0, 253, 13, 52, 13, 221, 221, 52,
+    0, 13, 221, 221, 221, 253, 13, 13,
+    0, 253, 208, 244, 13, 13, 221, 52,
+    0, 52, 221, 208, 244, 221, 221, 52,
+    0, 253, 13, 13, 52, 52, 52, 52,
+    0, 52, 221, 221, 48, 221, 221, 52,
+    0, 52, 221, 221, 61, 13, 221, 52,
+    // space
+    0, 0, 0, 0, 0, 0, 0, 0
+  };
+
+  word plotDigitAddr = digits;
+
+
+
+  
+      
+  uint keepPlaying = 0x00;
+  while( keepPlaying != 62 )
+    {
+      screenReset();
+      initSprites();
+      
+      if( status == 1 )
+	{
+	  LZ = generateLandscape();
+	}
+      uint LZp = LZ + 0x01;
+      peakarray[LZp] = peakarray[LZ];
+      word leftBound = (LZ * 40);
+      word rightBound = ((LZ + 1) * 40);
+
+      drawSurface( LZ );
+
+      scoreclock = 0x0064;
+      
+      yvel = 0x00;
+      xvel = 0x00;
+      
+      ypos = 0x4B;
+      
+      if( LZ > 3 )
+	{
+	  xpos = 0x0018;
+	}
+      else
+	{
+	  xpos = 0x0128;      
+	}
+
+      spritexy( 0, xpos, ypos );  
+      spriteset( 0x01 );
+
+      bmPrint( 0x00, 0x00, row0Text, 0x05, 0x28 );
+      bmPrint( 0x00, 0x01, row1Text, 0x05, 0x28 );
+      
+      plotDigitColourValue11 = 0x05;
+      plotDigitY = 0x00;
+      plotDigitX = 0x08;
+      num = level;
+      plotNumber();
+
+      uint touchDown  = 0x00;
+      uint c = 0x00;
+      while( touchDown == 0 )
+	{
+	  c = getin();
+	  word T = timer & 0x00FF;
+	  
+	  if( T == 0x0000  )
+	    {
+	      asmcomment( "vvv---- hardcode this ----vvv" );
+	      poke( 0x87F8, 0x20 );
+	      asmcomment( "^^^---- hardcode this ----^^^" );
+	      
+	      checkLeft();
+	      checkRight();
+	      checkUp();
+	      //checkDown();
+	      gravity();
+	      showTelemetry();
+	      checkStatus();
+	      delay(0x0400);
+	      if( scoreclock != 0x0000 )
+		{
+		  scoreclock = scoreclock - 0x0001;
+		}
+	    }
+	  	  
+	  timer = timer + 0x0001;
+	}
+      
+      if( status == -2 )
+	{
+	  bmPrint( 9, 10, tooFastText, 0x05, 0x15 );
+	}
+
+      if( status == -1 )
+	{
+	  bmPrint( 14, 10, crashedText, 0x05, 0x0B );
+	}
+      if( status == 1 )
+	{
+	  bmPrint( 11, 10, landedText, 0x05, 0x11 );
+	  inc( level );
+	  if( FUEL < 0xFFFE && scoreclock != 0x0000 )
+	    {
+	      FUEL = FUEL + 0x0032;
+	    }
+	}
+
+      delay( 0x7FFF );
+      if( FUEL == 0x0000 )
+	{
+	  // game over
+	  // play again?
+	  gopaScreen();
+	  keepPlaying = getKey();
+	  if( keepPlaying != 62 )
+	    {
+	      resetGame();	      
+	    }
+	}
+      else
+	{
+	  pauseScreen();
+	}
+    }
+
+  //pause();
+  spriteset( 0x00 );
+  clearkb();
+  romin();
+
+  bank(0);
+  asmcomment( "Restore $0314/$0315 IRQ Vector" );
+  irq( ptr(irqrestore), 0x00, 0x01 );  
+  clearsid();
+  asmcomment( "set volume to 0" );
+  poke( 0xD418, 0x00 );
+  restoreregs();
+  return;
+}
+
+void checkStatus()
+{
+  if( onFloor() != 0x00 )
+    {
+      touchDown = 1;
+      
+      uint myX = NULL;
+      uint myY = NULL;
+      
+      myY = yvel;
+      if( yvel < 0 )
+	{
+	  myY = myY * -1;
+	}
+      myX = xvel;
+      if( xvel < 0 )
+	{
+	  myX = myX * -1;
+	}
+      
+      if( xpos < rightBound && xpos > leftBound )
+	{
+	  status = 1;
+	  if( myX + myY > 4 )
+	    {
+	      status = -2;
+	    }
+	}
+      else
+	{
+	  status = -1;
+	}
+    }
+  return;
+}
+  
+void showTelemetry()
+{
+  plotDigitY = 0x00;
+
+  num = scoreclock / 0x03;
+  plotDigitX = 0x17;
+  plotNumber();
+
+  general8bit = xvel;
+  if( xvel < 0 )
+    {
+      general8bit = general8bit * -1;
+    }
+  num = toword(general8bit);
+  plotDigitX = 0x27;  
+  plotNumber();  
+  inc(plotDigitY);
+  
+
+  plotDigitX = 0x08;
+  plotDigitY = 0x01;
+  num = FUEL;
+  plotNumber();
+
+  if( FUEL == 0x0000 )
+    {
+      bmPrint( 0x06, 0x01, emptyText, 0x05, 0x05 );
+    }
+  else
+    {
+      plotDigitColourValue11 = 0x05;
+      num = FUEL;
+      plotDigitX = 0x08;  
+      plotNumber();
+    }
+  general8bit = yvel;
+  if( yvel < 0 )
+    {
+      general8bit = general8bit * -1;
+    }
+  num = toword(general8bit);
+  plotDigitX = 0x27;  
+  plotNumber();
+
+
+  return;
+}
+
+void gravity()
+{
+  if( gravbyte == 0xFF )
+    {
+      yvel = yvel + 0x01;
+    }
+
+  if(yvel>9)
+    {
+      yvel=9;
+    }
+  
+  inline( "lda #$FF", 2 );
+  inline( "eor gravbyte", 3 );
+  inline( "sta gravbyte", 3 );
+
+  if( xpos > 0x0140 )
+    {
+      xpos = 0x0140;
+    }
+  if( xpos < 0x0018 )
+    {
+      xpos = 0x0018;
+    }
+  
+  if( ypos < 0x4C )
+    {
+      ypos = 0x4C;
+    }
+  
+  if( ypos >= 0xDD )
+    {
+      ypos = 0xDC;
+      yvel = 0x00;
+    }
+  
+  if( onFloor() == 0x01 )
+    {
+      yvel = 0x00;
+    }
+
+  ypos = ypos + yvel;
+  xpos = xpos + xvel;
+
+  spritexy( 0, xpos, ypos );
+  return;
+}
+
+void delay(word delayLength)
+{
+  for( word del = 0x0000; del < delayLength; del = del + 0x0001 )
+    {
+      nop();
+    }
+  return;
+}
+
+// U
+void checkLeft()
+{
+  if( c == 30 )
+    {
+      if( FUEL > 0x0000 )
+	{
+	  playerSFXFlag = 0x0A;
+	  poke( 0x87F8, 0x21 );
+	  dec( xvel );
+	  if( xvel < -5 )
+	    {
+	      xvel = -5;
+	    }
+	  loseFuel();
+	}
+    }
+  return;
+}
+
+// O
+void checkRight()
+{
+  if( c == 38 )
+    {
+      if( FUEL > 0x0000 )
+	{
+	  playerSFXFlag = 0x0A;
+	  poke( 0x87F8, 0x22 );
+	  inc( xvel );      
+	  if( xvel > 5 )
+	    {
+	      xvel = 5;
+	    }
+	  loseFuel();
+	}
+    }
+  return;
+}
+
+// I
+void checkUp()
+{
+  if( c == 33 )
+    {
+      if( FUEL > 0x0000 )
+	{
+	  playerSFXFlag = 0x0A;
+	  poke( 0x87F8, 0x23 );
+	  yvel = yvel - 0x02;
+	  if(yvel<-9)
+	    {
+	      yvel=-9;
+	    }
+	  loseFuel();
+	}
+    }
+  return;
+}
+
+// K
+//void checkDown()
+//{
+//  if( c == 37 )
+//    {
+//      nop();
+//   }  
+//return;
+//}
+
+void clearkb()
+{
+  poke( 0xC6, 0x00 );
+  jsr( 0xFFE4 );
+  return;
+}
+
+void loseFuel()
+{
+  FUEL = FUEL - 0x0001;
+  return;
+}
+
+uint onFloor()
+{
+  word RIGHT = getpixel( xpos - 0x0004, ypos - 0x1D );
+  byte0 = peek( RIGHT );
+  byte1 = peek( RIGHT - 0x0008 );
+  byte2 = peek( RIGHT - 0x0010 );
+  rtn8bit = byte2 | ( byte1 | byte0 );
+  return rtn8bit;
+}
+
+void plotNumber()
+{
+  if( num == 0x0000 )
+    {
+      bmPrint(plotDigitX, plotDigitY, zero, 5, 1 );
+    }
+  else
+    {
+      while( num != 0x0000 )
+	{
+	  uint rem = NULL;
+	  num = num / 0x0A;
+	  inline( "lda $02", 2 );
+	  inline( "sta rem", 3 );
+	  plotDigitBindex = asl(asl(asl(rem)));    
+	  plotDigit();
+	  dec(plotDigitX);
+	}
+      bmPrint( plotDigitX, plotDigitY, spaceText, 0x02, 0x05 );
+    }
+  
+  return;
+}
+
+void plotDigit()
+{
+  word plotDigitOffset = plotDigitY;
+  plotDigitOffset = (plotDigitOffset * 40) + plotDigitX;
+
+  word plotDigitColor1 = plotDigitOffset + 0xD800;
+  word plotDigitColors2And3 = plotDigitOffset + 0x8400;
+  poke( plotDigitColor1, plotDigitColourValue11 );
+  poke( plotDigitColors2And3, plotDigitColourValue1001 );
+  plotDigitOffset = asl( asl( asl( plotDigitOffset ) ) );
+
+  word plotDigitPixels = plotDigitOffset + 0xA000;  
+
+  for( uint plotDigitI = 0; plotDigitI < 8; inc( plotDigitI ) )
+    {
+      poke( plotDigitPixels, (plotDigitAddr)[plotDigitBindex] );
+      plotDigitPixels = plotDigitPixels + 1;
+      inc( plotDigitBindex );
+    }
+  return;
+}
+
+void drawSurface( uint drawSurfaceARG0 )
+{
+  for( j = 0; j < 8; inc(j) )
+    {
+      uint X1 = touint(j*20);
+      uint X2 = touint((j+1)*20);
+
+      if( j == 7 )
+	{
+	  // needed because the far right
+	  // (x==160) is actually x==1
+	  dec(X2);
+	}
+      
+      if( j == drawSurfaceARG0 )
+	{	 
+	  // landing zone
+	  for( general8bit = 0; general8bit < 4; inc( general8bit ) )
+	    {
+	      segment( X1, peakarray[j] + general8bit, X2, peakarray[j+1] + general8bit, 0x02 );
+	    }
+	  segment( X1, peakarray[j] + 3, X2, peakarray[j+1] + 9, 0x03 );
+	  segment( X1, peakarray[j] + 9, X2, peakarray[j+1] + 3, 0x03 );
+	  
+	}
+      else
+	{
+	  segment( X1, peakarray[j], X2, peakarray[j+1], 0x03 );
+	  segment( X1, peakarray[j] + 1, X2, peakarray[j+1] + 9, 0x03 );
+	  segment( X1, peakarray[j] + 9, X2, peakarray[j+1] + 1, 0x03 );
+	}
+    }
+  return;
+}
+
+void pauseScreen()
+{
+  spriteset( 0x00 );
+  bmPrint( 0x07, 0x0D, pauseText0, 5, 17 );
+  pause();
+  return;
+}
+
+void gopaScreen()
+{
+  // Game-Over Play Again? Screen
+  spriteset( 0x00 );
+  bmPrint( 0x0F, 0x0C, gopaText0, 5, 9 );
+  bmPrint( 0x0B, 0x0E, gopaText1, 5, 17 );
+  bmPrint( 0x06, 0x10, gopaText2, 5, 27 );
+  return;
+}
+
+uint getKey()
+{
+  clearkb();
+  uint getKeyRet = getin();
+  while( getKeyRet == 0x40 )
+    {
+      getKeyRet = getin();
+      clearkb();
+    }
+  return getKeyRet;
+}
+
+void irqfunc1()
+{
+  asmcomment( "the sound effect routine (OPTIMIZE)" );
+  if( playerSFXFlag != 0x00 )
+    {
+      poke( 0xD40B, 0x81 );
+      if( playerSFXFlag == 0x01 )
+	{
+	  poke( 0xD40B, 0x80 );
+	}
+      dec( playerSFXFlag );
+    }
+  asmcomment( "acknowledge interrupt" );
+  inline( "asl $D019", 3 );
+  jmp( 0xEA31 );
+  return;
+}
+
+void irqrestore()
+{
+  inline( "asl $D019", 3 );
+  jmp( 0xEA31 );
+  return;
+}
+
+uint generateLandscape()
+{
+  // returns the start of the landing
+  // zone location that's in the array
+  for( j = 0; j < 9; inc(j) )
+    {
+      peakarray[j] = (myRand()/2) + 57;
+    }
+  uint generateLandscapeRET0 = touint(myRand()/32);
+  return generateLandscapeRET0;
+}
+
+void resetGame()
+{
+  inline( "ldx #$00", 2 );
+  inline( "stx yvel", 3 );
+  inline( "stx xvel", 3 );
+  inline( "stx playerSFXFlag", 3 );
+  inline( "stx FUEL +1", 3 );
+  inline( "inx", 1 );
+  inline( "stx level", 3 );
+  inline( "stx status", 3 );
+  inline( "ldx #$50", 2 );
+  inline( "stx FUEL", 3 );
+  return;
+}
+
+void screenReset()
+{
+  inline( "lda #$00", 2 );
+  inline( "sta $D020", 3 );
+  inline( "sta $D021", 3 );
+  fillmem( 0xD8, 0x05, 0x04 );
+  fillmem( 0x84, 0xD7, 0x12 );
+  clearmem( 0xA0, 0x20 );
+  return;
+}
+
+void drawTitleSceen()
+{
+  data titleScreen = {
+    0, 10, 0, 30,
+    0, 10, 8, 0,
+    0, 30, 8, 40,
+    8, 0, 16, 0,
+    8, 40, 16, 40,
+    16, 0, 24, 10,
+    16, 40, 24, 30,
+
+    32, 30, 40, 10,
+    36, 20, 45, 20,
+    40, 10, 48, 30,
+
+    56, 10, 56, 30,
+    56, 30, 64, 30,
+    72, 10, 72, 30,
+    72, 30, 80, 30,
+
+    88, 10, 88, 31,
+
+    96, 10, 96, 20,
+    96, 10, 104, 10,
+    96, 20, 104, 20,
+    96, 30, 104, 30,
+    104, 31, 104, 20,
+
+    112, 10, 128, 10,
+    120, 10, 120, 31,
+
+    136, 10, 136, 30,
+    136, 10, 144, 0,
+    136, 30, 144, 40,
+    144, 0, 152, 0,
+    144, 40, 152, 40,
+    152, 0, 159, 10,
+    152, 40, 159, 30,
+    159, 10, 159, 30
+  };
+
+  word tsp = titleScreen;
+
+  for( general8bit = 0x00; general8bit<0x1E; inc(general8bit) )
+    {
+      segment( (tsp)[0], (tsp)[1], (tsp)[2], (tsp)[3], 0x03 );
+      tsp = tsp + 0x0004;
+    }
+
+  //            0123456789012345678901234567890123456789
+  data ts0 = { "(C) 2025 - MICHAEL K. PELLEGRINO"};
+  data ts1 = { "THRUSTERS: I-UP U-LEFT O-RIGHT" };
+  data ts2 = { "LAND THE CRAFT ON THE LANDING PAD"};
+  data ts3 = { "BEFORE TIME EXPIRES TO GET MORE FUEL" };
+  data ts4 = { "FOR THE NEXT LEVEL" };
+
+  
+  bmPrint( 0x05, 0x0E, ts1, 0x05, 0x1F );
+  bmPrint( 0x04, 0x10, ts2, 0x05, 0x20 );
+  bmPrint( 0x02, 0x12, ts3, 0x05, 0x23 );
+  bmPrint( 0x02, 0x14, ts4, 0x05, 0x10 );
+  bmPrint( 0x04, 0x18, ts0, 0x05, 0x22 );
+  bmPrint( 0x09, 0x16, ts5, 0x05, 0x22 );
+
+  for( j = 0; j < 9; inc(j) )
+    {
+      peakarray[j] = (myRand()/3) + 40;
+    }
+
+  
+  drawSurface(2);
+  
+  spritexy( 0, 0x0135, 0x3B );  
+  spriteset( 0x01 );
+  
+  return;
+}
+
+void initSprites()
+{
+  data sprite1 =
+    {
+      0x00, 0x7E, 0x00,
+      0x07, 0x81, 0xE0,
+      0x08, 0x7E, 0x10,
+      0x17, 0x81, 0xE8,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x17, 0x81, 0xE8,
+      0x08, 0x7E, 0x10,
+      0x07, 0xFF, 0xE0,
+      0x02, 0x96, 0x40,
+      0x02, 0x96, 0x40,
+      0x02, 0xD3, 0x40,
+      0x02, 0xD3, 0x40,
+      0x07, 0xFF, 0xE0,
+      0x0C, 0x18, 0x30,
+      0x18, 0x18, 0x18,
+      0x30, 0x18, 0x0C,
+      0xB4, 0x99, 0x2D,
+      0x78, 0x7E, 0x1E, 0x00
+    };
+
+  data rightBurnerSprite =
+    {
+      0x00, 0x7E, 0x00,
+      0x07, 0x81, 0xE0,
+      0x08, 0x7E, 0x10,
+      0x17, 0x81, 0xE8,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x17, 0x81, 0xE8,
+      0x08, 0x7E, 0x10,
+      0x07, 0xFF, 0xE0,
+      0x02, 0x96, 0x44,
+      0x02, 0x96, 0x46,
+      0x02, 0xD3, 0x47,
+      0x02, 0xD3, 0x46,
+      0x07, 0xFF, 0xE4,
+      0x0C, 0x18, 0x30,
+      0x18, 0x18, 0x18,
+      0x30, 0x18, 0x0C,
+      0xB4, 0x99, 0x2D,
+      0x78, 0x7E, 0x1E, 0x00
+    };
+
+  data leftBurnerSprite =
+    {
+      0x00, 0x7E, 0x00,
+      0x07, 0x81, 0xE0,
+      0x08, 0x7E, 0x10,
+      0x17, 0x81, 0xE8,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x17, 0x81, 0xE8,
+      0x08, 0x7E, 0x10,
+      0x07, 0xFF, 0xE0,
+      0x12, 0x96, 0x40,
+      0x32, 0x96, 0x40,
+      0x72, 0xD3, 0x40,
+      0x32, 0xD3, 0x40,
+      0x17, 0xFF, 0xE0,
+      0x0C, 0x18, 0x30,
+      0x18, 0x18, 0x18,
+      0x30, 0x18, 0x0C,
+      0xB4, 0x99, 0x2D,
+      0x78, 0x7E, 0x1E, 0x00
+    };
+
+  data bottomBurnerSprite =
+    {
+      0x00, 0x7E, 0x00,
+      0x07, 0x81, 0xE0,
+      0x08, 0x7E, 0x10,
+      0x17, 0x81, 0xE8,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x28, 0x00, 0x14,
+      0x17, 0x81, 0xE8,
+      0x08, 0x7E, 0x10,
+      0x07, 0xFF, 0xE0,
+      0x02, 0x96, 0x40,
+      0x02, 0x96, 0x40,
+      0x02, 0xD3, 0x40,
+      0x02, 0xD3, 0x40,
+      0x07, 0xFF, 0xE0,
+      0x0C, 0x18, 0x30,
+      0x18, 0x18, 0x18,
+      0x30, 0xFF, 0x0C,
+      0xB4, 0xFF, 0x2D,
+      0x79, 0xFF, 0x9E, 0x00
+    };
+      
+  poke( 0x87F8, 0x20 );
+  asmcomment( "copy the sprite data to $8800" );
+  for( uint si = 0x00; si < 0xFF; inc(si) )
+    {
+      poke( 0x8800 + si, peek(sprite1 + si) );
+    }
+  spritecolour( 0x00, 0x05 );
+  return;
+}
